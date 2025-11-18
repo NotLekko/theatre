@@ -12,6 +12,7 @@
 
 ## 0.4.3
 
+
 * New features
   * `sequence.attachAudio()` now [accepts](https://github.com/AriaMinaei/theatre/commit/3f0556b9eb66a0893b43e38a3ee889e13d3a6667) any `AudioNode` as destination.
   * Implemented `studio.createContentOfSaveFile()` for programmatically exporting the project's state.

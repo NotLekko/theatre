@@ -78,11 +78,17 @@ export default class Sheet {
   }
 
   deleteObject(objectKey: ObjectAddressKey) {
+    const objectExists = !!this._objects.get()[objectKey]
+
     this._objects.reduce((state) => {
       const newState = {...state}
       delete newState[objectKey]
       return newState
     })
+
+    if (objectExists) {
+      this.project._forgetObject(this.address.sheetId, objectKey)
+    }
   }
 
   getSequence(): Sequence {

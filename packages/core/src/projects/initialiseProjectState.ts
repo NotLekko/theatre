@@ -48,9 +48,10 @@ export default async function initialiseProjectState(
     if (!onDiskState) {
       useBrowserState()
     } else {
+      const diskHeadRevision = onDiskState.revisionHistory[0]
       if (
-        browserState.revisionHistory.indexOf(onDiskState.revisionHistory[0]) ==
-        -1
+        diskHeadRevision &&
+        browserState.revisionHistory.indexOf(diskHeadRevision) === -1
       ) {
         browserStateIsNotBasedOnDiskState(onDiskState)
       } else {

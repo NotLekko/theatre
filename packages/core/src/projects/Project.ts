@@ -17,6 +17,7 @@ import type {Deferred} from '@theatre/utils/defer'
 import {defer} from '@theatre/utils/defer'
 import {globals} from '@theatre/core/globals'
 import type {
+  ObjectAddressKey,
   ProjectId,
   SheetId,
   SheetInstanceId,
@@ -81,6 +82,7 @@ export default class Project {
   private _sheetTemplates = new Atom<{
     [sheetId: string]: SheetTemplate | undefined
   }>({})
+  private _localProjectStateAtom: Atom<ProjectState> | undefined
   sheetTemplatesP = this._sheetTemplates.pointer
   private _studio: Studio | undefined
   assetStorage: IStudioAssetStorage
@@ -108,6 +110,7 @@ export default class Project {
         revisionHistory: [],
       },
     })
+    this._localProjectStateAtom = onDiskStateAtom
 
     this._assetStorageReadyDeferred = defer()
     this.assetStorage = {
@@ -202,6 +205,7 @@ export default class Project {
         this._pointerProxies.ephemeral.setPointer(
           studio.ephemeralAtom.pointer.coreByProject[this.address.projectId],
         )
+        this._localProjectStateAtom = undefined
 
         // asset storage has to be initialized after the pointers are set
         await studio
@@ -246,6 +250,80 @@ export default class Project {
     }
 
     return template.getInstance(instanceId)
+  }
+
+  /**
+   * @internal
+   * Removes all persisted state related to an object. Used when the object
+   * is detached before studio is attached or when studio isn't present.
+   */
+  _forgetObject(sheetId: SheetId, objectKey: ObjectAddressKey) {
+    const projectId = this.address.projectId
+
+    if (this._studio) {
+      this._studio.transaction(({stateEditors}: $____FixmeStudio) => {
+        stateEditors.coreByProject.historic.sheetsById.forgetObject({
+          projectId,
+          sheetId,
+          objectKey,
+        })
+      })
+      return
+    }
+
+    const localAtom = this._localProjectStateAtom
+    if (!localAtom) return
+
+    localAtom.reduce((state) => {
+      const sheetState = state.historic.sheetsById[sheetId]
+      if (!sheetState) return state
+
+      let hasChanges = false
+      let newSheetState = sheetState
+
+      const staticOverridesForObject =
+        sheetState.staticOverrides.byObject[objectKey]
+      if (staticOverridesForObject) {
+        const newByObject = {...sheetState.staticOverrides.byObject}
+        delete newByObject[objectKey]
+        newSheetState = {
+          ...newSheetState,
+          staticOverrides: {
+            ...sheetState.staticOverrides,
+            byObject: newByObject,
+          },
+        }
+        hasChanges = true
+      }
+
+      const tracksByObject = sheetState.sequence?.tracksByObject
+      if (tracksByObject && tracksByObject[objectKey]) {
+        const newTracksByObject = {...sheetState.sequence.tracksByObject}
+        delete newTracksByObject[objectKey]
+        const newSequence = {
+          ...sheetState.sequence,
+          tracksByObject: newTracksByObject,
+        }
+        newSheetState =
+          newSheetState === sheetState
+            ? {...sheetState, sequence: newSequence}
+            : {...newSheetState, sequence: newSequence}
+        hasChanges = true
+      }
+
+      if (!hasChanges) return state
+
+      return {
+        ...state,
+        historic: {
+          ...state.historic,
+          sheetsById: {
+            ...state.historic.sheetsById,
+            [sheetId]: newSheetState,
+          },
+        },
+      }
+    })
   }
 }
 
