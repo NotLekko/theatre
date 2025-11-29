@@ -1,10 +1,10 @@
 // import type {Studio} from '@theatre/studio/Studio'
 import delay from '@theatre/utils/delay'
 import type Project from './Project'
-import type {OnDiskState} from '@theatre/core/types/private/core'
-import {globals} from '@theatre/core/globals'
-import {val} from '@theatre/dataverse'
-import type {$____FixmeStudio} from '@theatre/core/types/public'
+import type { OnDiskState } from '@theatre/core/types/private/core'
+import { globals } from '@theatre/core/globals'
+import { val } from '@theatre/dataverse'
+import type { $____FixmeStudio } from '@theatre/core/types/public'
 
 type Studio = $____FixmeStudio
 
@@ -32,7 +32,7 @@ export default async function initialiseProjectState(
     (p: $____FixmeStudio) => p.coreByProject[projectId],
     {
       lastExportedObject: null,
-      loadingState: {type: 'loading'},
+      loadingState: { type: 'loading' },
     },
   )
 
@@ -49,6 +49,7 @@ export default async function initialiseProjectState(
       useBrowserState()
     } else {
       if (
+        onDiskState.revisionHistory.length > 0 &&
         browserState.revisionHistory.indexOf(onDiskState.revisionHistory[0]) ==
         -1
       ) {
@@ -60,7 +61,7 @@ export default async function initialiseProjectState(
   }
 
   function useInitialState() {
-    studio.transaction(({stateEditors}: $____FixmeStudio) => {
+    studio.transaction(({ stateEditors }: $____FixmeStudio) => {
       stateEditors.coreByProject.historic.setProjectState({
         projectId,
         state: {
@@ -79,7 +80,7 @@ export default async function initialiseProjectState(
   }
 
   function useOnDiskState(state: OnDiskState) {
-    studio.transaction(({stateEditors}: $____FixmeStudio) => {
+    studio.transaction(({ stateEditors }: $____FixmeStudio) => {
       stateEditors.coreByProject.historic.setProjectState({
         projectId,
         state,
