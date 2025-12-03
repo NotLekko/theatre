@@ -1,7 +1,13 @@
-import { getStudioSync} from '@theatre/core'
+import {getStudio, getStudioSync} from '@theatre/core'
 import type {UseDragOpts} from './useDrag'
 import useDrag from './useDrag'
-import React, {useLayoutEffect, useMemo, useRef, useState} from 'react'
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type {
   IProject,
   ISheet,
@@ -182,10 +188,14 @@ export const Scene: React.FC<{project: IProject}> = ({project}) => {
   const sheet = project.sheet('Scene', 'default')
   const [selection, setSelection] = useState<IStudio['selection']>()
 
-  useLayoutEffect(() => {
-    return getStudioSync()!.onSelectionChange((newState) => {
-      setSelection(newState)
+  useEffect(() => {
+    let unsubscribe = () => {}
+    getStudio().then((studio) => {
+      unsubscribe = studio.onSelectionChange((newState) => {
+        setSelection(newState)
+      })
     })
+    return () => unsubscribe()
   }, [])
 
   const containerRef = useRef<HTMLDivElement>(null!)
