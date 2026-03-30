@@ -39,7 +39,7 @@ An effect hook, similar to React's `useEffect()`, but is not sensitive to call o
 
 | Name | Type | Description |
 | :------ | :------ | :------ |
-| `key` | `string` | the key for the effect. Should be uniqe inside of the prism. |
+| `key` | `string` | the key for the effect. Should be unique inside of the prism. |
 | `cb` | () => () => `void` | the callback function. Requires returning a cleanup function. |
 | `deps?` | `unknown`[] | the dependency array |
 
@@ -121,7 +121,7 @@ ___
 ▸ <`T`\>(`key`, `fn`, `deps`): `T`
 
 `prism.memo()` works just like React's `useMemo()` hook. It's a way to cache the result of a function call.
-The only difference is that `prism.memo()` requires a key to be passed into it, whlie `useMemo()` doesn't.
+The only difference is that `prism.memo()` requires a key to be passed into it, while `useMemo()` doesn't.
 This means that we can call `prism.memo()` in any order, and we can call it multiple times with the same key.
 
 ##### Type parameters
@@ -167,7 +167,7 @@ ___
 ▸ <`T`\>(`key`, `initialValue`): `IRef`<`T`\>
 
 Just like React's `useRef()`, `prism.ref()` allows us to create a prism that holds a reference to some value.
-The only difference is that `prism.ref()` requires a key to be passed into it, whlie `useRef()` doesn't.
+The only difference is that `prism.ref()` requires a key to be passed into it, while `useRef()` doesn't.
 This means that we can call `prism.ref()` in any order, and we can call it multiple times with the same key.
 
 ##### Type parameters
