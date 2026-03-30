@@ -80,7 +80,7 @@ const atom = new Atom({intensity: 1, position: {x: 0, y: 0}})
 #### Changing the state of an atom
 
 ```ts
-// replace the whole stae
+// replace the whole state
 atom.set({intensity: 1, position: {x: 0, y: 0}})
 
 // or using an update function
@@ -327,7 +327,7 @@ p.onChange(ticker, (value) => {
 
 Just like React's `useRef()`, `prism.ref()` allows us to create a prism that
 holds a reference to some value. The only difference is that `prism.ref()`
-requires a key to be passed into it, whlie `useRef()` doesn't. This means that
+requires a key to be passed into it, while `useRef()` doesn't. This means that
 we can call `prism.ref()` in any order, and we can call it multiple times with
 the same key.
 
@@ -351,7 +351,7 @@ p.onChange(ticker, (value) => {
 
 `prism.memo()` works just like React's `useMemo()` hook. It's a way to cache the
 result of a function call. The only difference is that `prism.memo()` requires a
-key to be passed into it, whlie `useMemo()` doesn't. This means that we can call
+key to be passed into it, while `useMemo()` doesn't. This means that we can call
 `prism.memo()` in any order, and we can call it multiple times with the same
 key.
 
@@ -598,7 +598,7 @@ atom.set(1)
 console.log(val(a)) // 2
 ```
 
-Prism states propogate through the prism dependency graph. Let's look at an
+Prism states propagate through the prism dependency graph. Let's look at an
 example:
 
 ```ts
@@ -657,7 +657,7 @@ unsub()
 //    🧊   |    🧊    |    🧊    |
 ```
 
-The state transitions propogate in topological order. Let's demonstrate this by
+The state transitions propagate in topological order. Let's demonstrate this by
 adding one more prism to our dependency graph:
 
 ```ts

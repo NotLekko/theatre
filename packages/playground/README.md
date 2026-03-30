@@ -65,7 +65,7 @@ $ yarn playwright codegen http://localhost:8080/tests/[playground-name] # run th
 
 ## Visual regression testing
 
-Some `.e2e.ts` files also contain visual regression tetst. These tests run only
+Some `.e2e.ts` files also contain visual regression test. These tests run only
 the the [CI](../../.github/workflows/main.yml) using
 [Github actions](https://github.com/theatre-js/theatre/actions). Look at the
 example at
@@ -87,5 +87,5 @@ $ yarn test:e2e:ci
 ```
 
 If you're submitting a PR that breaks the visual regression tests and you're not
-familiar with Docker, simply ask the mainainers to update the screenshots for
+familiar with Docker, simply ask the maintainers to update the screenshots for
 you.
