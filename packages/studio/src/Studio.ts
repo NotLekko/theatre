@@ -44,38 +44,11 @@ import SyncServerLink from './SyncStore/SyncServerLink'
 import type {TrpcClientWrapped} from './SyncStore/utils'
 import {wrapTrpcClientWithAuth} from './SyncStore/utils'
 import {env} from './env'
+import {InitWarning} from './initWarning'
 
 const DEFAULT_PERSISTENCE_KEY = 'theatre-0.4'
 
 export type CoreExports = typeof _coreExports
-
-const STUDIO_NOT_INITIALIZED_MESSAGE = `You seem to have imported '@theatre/studio' but haven't initialized it. You can initialize the studio by:
-\`\`\`
-import theatre from '@theatre/core'
-theatre.init({studio: true})
-\`\`\`
-
-* If you didn't mean to import '@theatre/studio', this means that your bundler is not tree-shaking it. This is most likely a bundler misconfiguration.
-
-* If you meant to import '@theatre/studio' without showing its UI, you can do that by running:
-
-\`\`\`
-import theatre from '@theatre/core'
-theatre.init({studio: true})
-studio.ui.hide()
-\`\`\`
-`
-
-const STUDIO_INITIALIZED_LATE_MSG = `You seem to have imported '@theatre/studio' but called \`studio.initialize()\` after some delay.
-Theatre.js projects remain in pending mode (won't play their sequences) until the studio is initialized, so you should place the \`studio.initialize()\` line right after the import line:
-
-\`\`\`
-import theatre from '@theatre/core'
-// ... and other imports
-
-studio.initialize()
-\`\`\`
-`
 
 export type StudioOpts = {
   serverUrl: string
@@ -143,14 +116,7 @@ export class Studio {
       result: UpdateCheckerResponse | 'error'
     }
   }>({})
-  /**
-   * Tracks whether studio.initialize() is called.
-   */
-  private _initializeFnCalled = false
-  /**
-   * Will be set to true if studio.initialize() isn't called after 100ms.
-   */
-  private _didWarnAboutNotInitializing = false
+  private readonly _initWarning = new InitWarning()
 
   /**
    * This will be set as soon as `@theatre/core` registers itself on `@theatre/studio`
@@ -254,14 +220,8 @@ export class Studio {
     this._attachToIncomingProjects()
     this.paneManager = new PaneManager(this)
 
-    // check whether studio.initialize() is called, but only if we're in the browser
     if (typeof window !== 'undefined') {
-      setTimeout(() => {
-        if (!this._initializeFnCalled) {
-          console.error(STUDIO_NOT_INITIALIZED_MESSAGE)
-          this._didWarnAboutNotInitializing = true
-        }
-      }, 100)
+      this._initWarning.startTimer()
     }
 
     this._initializedPromise = this._init()
@@ -315,13 +275,8 @@ export class Studio {
       )
     }
 
-    if (this._initializeFnCalled) {
+    if (!this._initWarning.markInitialized()) {
       return this._initializedPromise
-    }
-    this._initializeFnCalled = true
-
-    if (this._didWarnAboutNotInitializing) {
-      console.warn(STUDIO_INITIALIZED_LATE_MSG)
     }
 
     if (this._optsDeferred.status === 'pending') {
