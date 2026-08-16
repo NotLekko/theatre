@@ -49,10 +49,11 @@ const DEFAULT_PERSISTENCE_KEY = 'theatre-0.4'
 
 export type CoreExports = typeof _coreExports
 
-const STUDIO_NOT_INITIALIZED_MESSAGE = `You seem to have imported '@theatre/studio' but haven't initialized it. You can initialize the studio by:
+const STUDIO_NOT_INITIALIZED_MESSAGE = `You seem to have imported '@theatre/studio' but haven't called studio.initialize(). You can initialize the studio by:
+
 \`\`\`
-import theatre from '@theatre/core'
-theatre.init({studio: true})
+import studio from '@theatre/studio'
+studio.initialize()
 \`\`\`
 
 * If you didn't mean to import '@theatre/studio', this means that your bundler is not tree-shaking it. This is most likely a bundler misconfiguration.
@@ -60,10 +61,12 @@ theatre.init({studio: true})
 * If you meant to import '@theatre/studio' without showing its UI, you can do that by running:
 
 \`\`\`
-import theatre from '@theatre/core'
-theatre.init({studio: true})
+import studio from '@theatre/studio'
+studio.initialize()
 studio.ui.hide()
 \`\`\`
+
+For more info, see https://www.theatrejs.com/docs/latest/manual/Studio
 `
 
 const STUDIO_INITIALIZED_LATE_MSG = `You seem to have imported '@theatre/studio' but called \`studio.initialize()\` after some delay.
@@ -148,9 +151,11 @@ export class Studio {
    */
   private _initializeFnCalled = false
   /**
-   * Will be set to true if studio.initialize() isn't called after 100ms.
+   * Will be set to true if studio.initialize() isn't called after the warning timeout.
    */
   private _didWarnAboutNotInitializing = false
+
+  private _initWarningTimer: ReturnType<typeof setTimeout> | undefined
 
   /**
    * This will be set as soon as `@theatre/core` registers itself on `@theatre/studio`
@@ -256,12 +261,12 @@ export class Studio {
 
     // check whether studio.initialize() is called, but only if we're in the browser
     if (typeof window !== 'undefined') {
-      setTimeout(() => {
+      this._initWarningTimer = setTimeout(() => {
         if (!this._initializeFnCalled) {
-          console.error(STUDIO_NOT_INITIALIZED_MESSAGE)
+          console.warn(STUDIO_NOT_INITIALIZED_MESSAGE)
           this._didWarnAboutNotInitializing = true
         }
-      }, 100)
+      }, 5000)
     }
 
     this._initializedPromise = this._init()
@@ -319,6 +324,11 @@ export class Studio {
       return this._initializedPromise
     }
     this._initializeFnCalled = true
+
+    if (this._initWarningTimer !== undefined) {
+      clearTimeout(this._initWarningTimer)
+      this._initWarningTimer = undefined
+    }
 
     if (this._didWarnAboutNotInitializing) {
       console.warn(STUDIO_INITIALIZED_LATE_MSG)
