@@ -9,7 +9,7 @@ import path from "node:path";
 import { describe, it } from "node:test";
 import { Ears, NoSpeechError, type Hearing, type ListenOptions } from "../src/listen/ears.ts";
 import { openMicrophone } from "../src/listen/microphone.ts";
-import { ensureSpeechModels, speechModelPaths } from "../src/listen/models.ts";
+import { ensureSpeechModels, speechModelPaths } from "../src/models.ts";
 import { VoiceInput } from "../src/listen/voiceInput.ts";
 import { findWakePhrase, isStopRequest, matchWakePhrase, parseConfirmation } from "../src/listen/wake.ts";
 

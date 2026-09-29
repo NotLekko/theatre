@@ -117,7 +117,8 @@ function openCommand(
     };
     const failure = (reason: string) => new Error(`${command} ${reason}${stderr.trim() ? `: ${stderr.trim()}` : ""}`);
     child.on("error", (err) => (started ? onError(err) : reject(err)));
-    child.on("exit", (code) => {
+    // "close" rather than "exit": it waits for stderr, so the error says why it failed.
+    child.on("close", (code) => {
       clearTimeout(grace);
       if (!started) reject(failure(`exited with code ${code}`));
       else if (!closing) onError(failure("stopped recording"));

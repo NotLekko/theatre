@@ -1,6 +1,8 @@
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
+import { FX_PRESETS, isFxPreset, type FxPreset } from "./speech/fx.ts";
+import { DEFAULT_NEURAL_VOICE, isNeuralVoice, NEURAL_VOICES } from "./speech/kokoro.ts";
 
 export const DEFAULT_MODEL = "claude-opus-5-5";
 
@@ -10,6 +12,9 @@ export type Effort = (typeof EFFORT_LEVELS)[number];
 export function isEffort(value: string): value is Effort {
   return (EFFORT_LEVELS as readonly string[]).includes(value);
 }
+
+export const VOICE_ENGINES = ["neural", "system"] as const;
+export type VoiceEngine = (typeof VOICE_ENGINES)[number];
 
 export interface Location {
   city?: string;
@@ -22,7 +27,12 @@ export interface Config {
   model: string;
   effort: Effort;
   voice: boolean;
+  /** "neural" is the film voice; "system" is the operating system's own text-to-speech. */
+  voiceEngine: VoiceEngine;
+  /** A neural voice (such as bm_fable) or, with the system engine, an operating system voice. */
   voiceName: string | undefined;
+  /** How the film voice is processed. */
+  voiceFx: FxPreset;
   honorific: string;
   userName: string | undefined;
   home: string;
@@ -106,6 +116,21 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
   if (!Number.isInteger(port) || port < 0 || port > 65535) {
     throw new Error(`The port must be a number from 0 to 65535, not "${values.port ?? env.JARVIS_PORT}".`);
   }
+  const voiceEngine = env.JARVIS_VOICE_ENGINE?.trim().toLowerCase() || "neural";
+  if (!(VOICE_ENGINES as readonly string[]).includes(voiceEngine)) {
+    throw new Error(`JARVIS_VOICE_ENGINE must be one of ${VOICE_ENGINES.join(", ")}, not "${env.JARVIS_VOICE_ENGINE}".`);
+  }
+  const voiceName = env.JARVIS_VOICE_NAME?.trim() || undefined;
+  if (voiceEngine === "neural" && voiceName !== undefined && !isNeuralVoice(voiceName)) {
+    throw new Error(
+      `"${voiceName}" isn't one of the film voices (${Object.keys(NEURAL_VOICES).join(", ")}). ` +
+        `To use it from your system's text-to-speech, set JARVIS_VOICE_ENGINE=system.`,
+    );
+  }
+  const voiceFx = env.JARVIS_VOICE_FX?.trim().toLowerCase() || "film";
+  if (!isFxPreset(voiceFx)) {
+    throw new Error(`JARVIS_VOICE_FX must be one of ${FX_PRESETS.join(", ")}, not "${env.JARVIS_VOICE_FX}".`);
+  }
   const micDevice = env.JARVIS_MIC_DEVICE?.trim() ? Number(env.JARVIS_MIC_DEVICE) : -1;
   if (!Number.isInteger(micDevice) || micDevice < -1) {
     throw new Error(`JARVIS_MIC_DEVICE must be a device index (0, 1, ...), not "${env.JARVIS_MIC_DEVICE}".`);
@@ -118,7 +143,9 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
       model: values.model ?? env.JARVIS_MODEL ?? DEFAULT_MODEL,
       effort,
       voice: values.voice ?? !voiceOffInEnv,
-      voiceName: env.JARVIS_VOICE_NAME || undefined,
+      voiceEngine: voiceEngine as VoiceEngine,
+      voiceName,
+      voiceFx,
       honorific: env.JARVIS_HONORIFIC || "sir",
       userName: env.JARVIS_USER_NAME || undefined,
       home: env.JARVIS_HOME || path.join(os.homedir(), ".jarvis"),

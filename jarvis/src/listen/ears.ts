@@ -7,7 +7,7 @@ import {
   type Microphone,
   type MicrophoneOptions,
 } from "./microphone.ts";
-import type { SpeechModelPaths } from "./models.ts";
+import type { SpeechModelPaths } from "../models.ts";
 import { findWakePhrase } from "./wake.ts";
 
 /** Raised when nobody starts speaking within the allowed time. */

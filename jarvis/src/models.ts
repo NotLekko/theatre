@@ -4,7 +4,7 @@ import path from "node:path";
 import { Readable } from "node:stream";
 import { pipeline } from "node:stream/promises";
 import type { ReadableStream } from "node:stream/web";
-import { formatBytes } from "../tools.ts";
+import { formatBytes } from "./tools.ts";
 
 /** sherpa-onnx's model releases on GitHub. */
 export const MODEL_RELEASES = "https://github.com/k2-fsa/sherpa-onnx/releases/download";
@@ -68,6 +68,8 @@ export function speechModelPaths(dir: string): SpeechModelPaths {
 export interface EnsureOptions {
   baseUrl?: string;
   onProgress?: (message: string) => void;
+  /** Cancels the download. */
+  signal?: AbortSignal;
 }
 
 /** Downloads the speech models into `dir` on first use (about 130 MB) and returns their paths. */
@@ -102,9 +104,66 @@ export async function ensureSpeechModels(dir: string, options: EnsureOptions = {
   return paths;
 }
 
-async function download(url: string, dest: string, label: string, onProgress: (message: string) => void) {
+// ---------------------------------------------------------------------------
+// The film voice: Kokoro, a small neural text-to-speech model with British voices.
+
+const KOKORO: Archive = { name: "kokoro-int8-multi-lang-v1_0", release: "tts-models", label: "voice model" };
+
+export interface VoiceModelPaths {
+  model: string;
+  voices: string;
+  tokens: string;
+  /** espeak-ng's pronunciation data, for words the lexicon doesn't know. */
+  dataDir: string;
+  /** British English pronunciations. */
+  lexicon: string;
+}
+
+export function voiceModelPaths(dir: string): VoiceModelPaths {
+  const kokoro = path.join(dir, KOKORO.name);
+  return {
+    model: path.join(kokoro, "model.int8.onnx"),
+    voices: path.join(kokoro, "voices.bin"),
+    tokens: path.join(kokoro, "tokens.txt"),
+    dataDir: path.join(kokoro, "espeak-ng-data"),
+    lexicon: path.join(kokoro, "lexicon-gb-en.txt"),
+  };
+}
+
+/**
+ * Downloads the voice model into `dir` on first use (a 132 MB download) and returns its
+ * paths. Only the parts an English voice needs are unpacked.
+ */
+export async function ensureVoiceModel(dir: string, options: EnsureOptions = {}): Promise<VoiceModelPaths> {
+  const { baseUrl = MODEL_RELEASES, onProgress = () => {}, signal } = options;
+  const paths = voiceModelPaths(dir);
+  const files = Object.values(paths);
+  if (files.every((file) => fs.existsSync(file))) return paths;
+
+  const local = path.join(dir, `${KOKORO.name}.tar.bz2`);
+  await download(`${baseUrl}/${KOKORO.release}/${KOKORO.name}.tar.bz2`, local, KOKORO.label, onProgress, signal);
+  onProgress(`Unpacking ${KOKORO.label}`);
+  try {
+    await untar(local, dir, files.map((file) => path.relative(dir, file).split(path.sep).join("/")));
+  } finally {
+    fs.rmSync(local, { force: true });
+  }
+  const missing = files.filter((file) => !fs.existsSync(file));
+  if (missing.length > 0) {
+    throw new Error(`The voice model is incomplete (missing ${missing.join(", ")}). Delete ${dir} and try again.`);
+  }
+  return paths;
+}
+
+async function download(
+  url: string,
+  dest: string,
+  label: string,
+  onProgress: (message: string) => void,
+  signal?: AbortSignal,
+) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
-  const response = await fetch(url);
+  const response = await fetch(url, { signal });
   if (!response.ok || !response.body) {
     throw new Error(`Couldn't download the ${label} (HTTP ${response.status} from ${url}).`);
   }
@@ -134,9 +193,10 @@ async function download(url: string, dest: string, label: string, onProgress: (m
   }
 }
 
-function untar(archive: string, dir: string): Promise<void> {
+/** Unpacks a .tar.bz2 archive into `dir`: all of it, or only `members`. */
+function untar(archive: string, dir: string, members: string[] = []): Promise<void> {
   return new Promise((resolve, reject) => {
-    const child = spawn("tar", ["-xjf", archive, "-C", dir], { stdio: ["ignore", "ignore", "pipe"] });
+    const child = spawn("tar", ["-xjf", archive, "-C", dir, ...members], { stdio: ["ignore", "ignore", "pipe"] });
     let stderr = "";
     child.stderr.setEncoding("utf8").on("data", (chunk: string) => (stderr += chunk));
     child.on("error", (err) => reject(new Error(`Couldn't run tar to unpack ${archive}: ${err.message}`)));

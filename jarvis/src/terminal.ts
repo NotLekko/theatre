@@ -1,13 +1,17 @@
+import path from "node:path";
 import * as readline from "node:readline/promises";
 import { EFFORT_LEVELS, isEffort, type Config } from "./config.ts";
 import { bootSequence, color, TerminalRenderer } from "./hud.ts";
 import type { Confirmation } from "./listen/wake.ts";
 import { farewell, greeting } from "./persona.ts";
 import { Session, type SessionUI } from "./session.ts";
-import { Voice } from "./voice.ts";
+import { FX_PRESETS, isFxPreset } from "./speech/fx.ts";
+import { DEFAULT_NEURAL_VOICE, type NeuralVoiceName } from "./speech/kokoro.ts";
+import { Speaker } from "./speech/speaker.ts";
 
 const COMMANDS = `  /listen [on|off]  voice input: say "Hey JARVIS", then your request
   /voice [on|off]   toggle speech
+  /voice <effect>   how the film voice sounds: ${FX_PRESETS.join(", ")}
   /effort [level]   show or set thinking effort (${EFFORT_LEVELS.join(", ")})
   /memory           list what I remember about you
   /forget <id>      delete a memory
@@ -28,15 +32,25 @@ function parseTypedConfirmation(answer: string): Confirmation {
 /** The session's face in a terminal: streaming output, readline prompts, spoken replies. */
 class TerminalUI implements SessionUI {
   readonly renderer = new TerminalRenderer();
-  readonly voice: Voice;
+  readonly voice: Speaker;
   readonly rl: readline.Interface;
   readonly interactive: boolean;
   closed = false;
   // Whether a readline question is on screen, so output from timers can redraw it.
   #prompting = false;
 
-  constructor(config: Config) {
-    this.voice = new Voice(config.voice, config.voiceName);
+  constructor(config: Config, oneShot: boolean) {
+    this.voice = new Speaker({
+      enabled: config.voice,
+      engine: config.voiceEngine,
+      neuralVoice: config.voiceEngine === "neural" ? ((config.voiceName as NeuralVoiceName) ?? DEFAULT_NEURAL_VOICE) : DEFAULT_NEURAL_VOICE,
+      systemVoiceName: config.voiceEngine === "system" ? config.voiceName : undefined,
+      fx: config.voiceFx,
+      modelsDir: path.join(config.home, "models"),
+      // A one-off answer isn't worth starting a 132 MB download for.
+      download: !oneShot,
+      onNotice: (message) => this.note(message),
+    });
     this.interactive = Boolean(process.stdin.isTTY);
     this.rl = readline.createInterface({ input: process.stdin, output: process.stdout, terminal: this.interactive });
     this.rl.on("close", () => {
@@ -145,7 +159,7 @@ class TerminalUI implements SessionUI {
 
 /** Runs JARVIS in the terminal: interactively, or for one request when `prompt` is given. */
 export async function runTerminal(config: Config, prompt: string | undefined): Promise<void> {
-  const ui = new TerminalUI(config);
+  const ui = new TerminalUI(config, prompt !== undefined);
   const { renderer, voice, rl } = ui;
   const session = new Session(config, ui);
   const { jarvis, memory, reminders } = session;
@@ -173,8 +187,20 @@ export async function runTerminal(config: Config, prompt: string | undefined): P
           renderer.note("  No text-to-speech engine found. The README explains how to install one.");
           break;
         }
+        if (isFxPreset(arg)) {
+          voice.fx = arg;
+          renderer.note(
+            voice.filmVoice
+              ? `  Voice effects: ${arg}.`
+              : `  Effects apply to the film voice, which isn't in use (${voice.engineName}).`,
+          );
+          break;
+        }
+        if (arg && arg !== "on" && arg !== "off") {
+          renderer.error(`Use /voice on, /voice off, or an effect: ${FX_PRESETS.join(", ")}.`);
+          break;
+        }
         voice.enabled = arg === "on" ? true : arg === "off" ? false : !voice.enabled;
-        if (!voice.enabled) voice.stop();
         renderer.note(`  Voice ${voice.enabled ? "on" : "off"}.`);
         break;
       case "effort":
@@ -239,7 +265,9 @@ export async function runTerminal(config: Config, prompt: string | undefined): P
   // In a terminal readline turns Ctrl+C into this event; otherwise it's a process signal.
   // At the prompt, abort the pending question: closing readline wouldn't settle it.
   const onInterrupt = () => {
-    if (!session.interrupt()) rl.close();
+    if (session.interrupt()) return;
+    voice.stop();
+    rl.close();
   };
   rl.on("SIGINT", onInterrupt);
   if (!ui.interactive) process.on("SIGINT", onInterrupt);
@@ -259,7 +287,7 @@ export async function runTerminal(config: Config, prompt: string | undefined): P
               ? "ANTHROPIC_AUTH_TOKEN"
               : "none in environment; trying `ant auth login` profile",
         ],
-        ["Voice synthesis", voice.enabled ? voice.engineName! : voice.available ? "muted" : "no engine found, text only"],
+        ["Voice synthesis", voice.enabled ? voice.engineName : voice.available ? "muted" : "no engine found, text only"],
         ["Voice input", config.listen ? 'wake word "Hey JARVIS"' : "keyboard (/listen to enable)"],
         ["Long-term memory", `${memory.list().length} record(s)`],
         ["Web uplink", "search and fetch"],
@@ -301,5 +329,7 @@ export async function runTerminal(config: Config, prompt: string | undefined): P
 
   session.close();
   rl.close();
-  await voice.finished(5000);
+  // Let him finish a one-off answer (Ctrl+C stops him); keep a farewell brief.
+  await voice.finished(prompt !== undefined ? 120_000 : 5000);
+  voice.close();
 }

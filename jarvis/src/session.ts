@@ -3,7 +3,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import type { Config } from "./config.ts";
 import { Jarvis, type TurnObserver } from "./jarvis.ts";
 import { Ears } from "./listen/ears.ts";
-import { ensureSpeechModels } from "./listen/models.ts";
+import { ensureSpeechModels } from "./models.ts";
 import { VoiceInput } from "./listen/voiceInput.ts";
 import { isStopRequest, type Confirmation } from "./listen/wake.ts";
 import { MemoryStore } from "./memory.ts";

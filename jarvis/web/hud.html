@@ -479,6 +479,8 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
     spin.sweep += dt * 2.4 * speed;
     envelope *= Math.pow(0.08, dt);
     flash *= Math.pow(0.05, dt);
+    const level = filmVoiceLevel();
+    if (level !== null) envelope = Math.max(envelope, level);
 
     // Waveform targets by state.
     for (let i = 0; i < BARS; i++) {
@@ -488,7 +490,13 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
       switch (ui.state) {
         case "thinking": target = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(i * 0.39 - t * 7)); break;
         case "responding": target = 0.16 + noise * 0.3; break;
-        case "speaking": target = 0.1 + envelope * (0.35 + noise * 0.55) + noise * 0.08; break;
+        case "speaking":
+          if (level !== null) {
+            // The voice's spectrum, mirrored around the ring: low notes at the top and bottom.
+            const band = i < BARS / 2 ? i : BARS - 1 - i;
+            target = 0.08 + (film.freq[2 + Math.floor(band * 2.2)] / 255) * 0.85 + noise * 0.04;
+          } else target = 0.1 + envelope * (0.35 + noise * 0.55) + noise * 0.08;
+          break;
         case "listening": target = 0.1 + 0.08 * (0.5 + 0.5 * Math.sin(t * 2.4)) + noise * 0.1; break;
         default: target = 0.06 + 0.04 * (0.5 + 0.5 * Math.sin(t * 1.3 + i * 0.13)) + noise * 0.03;
       }
@@ -761,13 +769,17 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
       .replace(/\s+/g, " ")
       .trim();
   }
-  const speaker = { enabled: store.get("voice", true), active: false, voice: null };
+  const speaker = { enabled: store.get("voice", true), active: false, voice: null, film: null };
+  // The browser's own voices, best first: neural British men (Edge's "Natural" voices, Apple's
+  // Enhanced and Premium ones), then the classic British male voices.
+  const NATURAL = /Natural|Neural|Enhanced|Premium/i;
   function pickVoice() {
     const voices = window.speechSynthesis?.getVoices() ?? [];
-    const prefer = [/Daniel/i, /Google UK English Male/i, /Arthur/i, /(George|Ryan|Thomas|Oliver)/i, /UK English Male/i];
+    const prefer = [/\b(Ryan|Thomas)\b.*Natural/i, /Daniel/i, /Google UK English Male/i, /Arthur/i, /\b(George|Oliver|Ryan|Thomas)\b/i, /UK English Male/i];
     const british = voices.filter((v) => /en[-_]GB/i.test(v.lang));
+    const best = (list) => list.find((v) => NATURAL.test(v.name)) || list[0];
     for (const pattern of prefer) {
-      const found = british.find((v) => pattern.test(v.name)) || voices.find((v) => pattern.test(v.name) && /^en/i.test(v.lang));
+      const found = best(british.filter((v) => pattern.test(v.name))) || best(voices.filter((v) => pattern.test(v.name) && /^en/i.test(v.lang)));
       if (found) return found;
     }
     return british[0] || voices.find((v) => /^en/i.test(v.lang)) || null;
@@ -798,8 +810,10 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
     chunks.forEach((chunk, i) => {
       const u = new SpeechSynthesisUtterance(chunk.trim());
       if (speaker.voice) { u.voice = speaker.voice; u.lang = speaker.voice.lang; } else u.lang = "en-GB";
-      u.rate = 1.02;
-      u.pitch = 0.92;
+      // A touch lower and more measured; neural voices need less nudging.
+      const natural = NATURAL.test(speaker.voice?.name ?? "");
+      u.rate = natural ? 1.04 : 1.02;
+      u.pitch = natural ? 0.96 : 0.9;
       u.onstart = () => { envelope = Math.max(envelope, 0.7); };
       u.onboundary = () => { envelope = 1; };
       u.onerror = (e) => {
@@ -815,9 +829,95 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
       envelope = Math.max(envelope, 0.45 + Math.random() * 0.4);
     }, 180);
   }
+
+  // The film voice: audio the local server renders, a sentence or two at a time, played
+  // through Web Audio so the reactor can follow the actual voice.
+  const film = { ctx: null, analyser: null, freq: null, wave: null, stream: null };
+  function audioContext() {
+    const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+    if (!film.ctx && AudioContextClass) {
+      film.ctx = new AudioContextClass();
+      film.analyser = film.ctx.createAnalyser();
+      film.analyser.fftSize = 1024;
+      film.analyser.smoothingTimeConstant = 0.6;
+      film.analyser.connect(film.ctx.destination);
+      film.freq = new Uint8Array(film.analyser.frequencyBinCount);
+      film.wave = new Float32Array(film.analyser.fftSize);
+    }
+    return film.ctx;
+  }
+  // Browsers let a page make sound only once someone has interacted with it.
+  for (const type of ["pointerdown", "keydown"]) {
+    addEventListener(type, () => { if (link?.kind === "local") audioContext()?.resume().catch(() => {}); }, { capture: true });
+  }
+  function playFilmVoice(id, count, text, onDone) {
+    stopSpeaking();
+    if (!speaker.enabled) return onDone();
+    const ctx = audioContext();
+    if (!ctx) return speak(text, onDone);
+    const run = ++speechRun;
+    const stream = { id, count, run, at: 0, sources: [], queue: Promise.resolve(), onDone };
+    film.stream = stream;
+    speaker.active = true;
+    setState("speaking", "");
+    if (ctx.state !== "running") {
+      ctx.resume().catch(() => {});
+      setTimeout(() => {
+        if (ctx.state === "running" || film.stream !== stream) return;
+        hint("Click anywhere on the display once so I can speak.");
+        endFilmVoice(stream);
+      }, 600);
+    }
+  }
+  function filmVoiceChunk(e) {
+    const stream = film.stream;
+    if (!stream || stream.id !== e.id || stream.run !== speechRun) return;
+    const bytes = Uint8Array.from(atob(e.wav), (c) => c.charCodeAt(0));
+    const last = e.index === stream.count - 1;
+    // Decode in order, then queue each piece right after the one before.
+    stream.queue = stream.queue
+      .then(() => film.ctx.decodeAudioData(bytes.buffer))
+      .then((buffer) => {
+        if (film.stream !== stream) return;
+        const source = film.ctx.createBufferSource();
+        source.buffer = buffer;
+        source.connect(film.analyser);
+        const at = Math.max(film.ctx.currentTime + 0.03, stream.at);
+        source.start(at);
+        stream.at = at + buffer.duration;
+        stream.sources.push(source);
+        if (last) source.onended = () => endFilmVoice(stream);
+      })
+      .catch(() => { if (last) endFilmVoice(stream); });
+  }
+  function endFilmVoice(stream) {
+    if (film.stream !== stream) return;
+    film.stream = null;
+    for (const source of stream.sources) try { source.stop(); } catch {}
+    speaker.active = false;
+    restingState();
+    stream.onDone();
+  }
+  /** The film voice's loudness and spectrum right now, for the reactor; null when it's quiet. */
+  function filmVoiceLevel() {
+    if (!film.stream || !film.analyser) return null;
+    film.analyser.getFloatTimeDomainData(film.wave);
+    let sum = 0;
+    for (const v of film.wave) sum += v * v;
+    film.analyser.getByteFrequencyData(film.freq);
+    return Math.min(1, Math.sqrt(sum / film.wave.length) * 5);
+  }
+
   function stopSpeaking() {
     speechRun++;
     if (window.speechSynthesis) speechSynthesis.cancel();
+    if (film.stream) {
+      // Let the server know, so it stops rendering the rest.
+      const stream = film.stream;
+      film.stream = null;
+      for (const source of stream.sources) try { source.stop(); } catch {}
+      stream.onDone();
+    }
     if (speaker.active) {
       speaker.active = false;
       restingState();
@@ -854,6 +954,7 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
         syncMic();
         setBusy(!!e.busy);
         if (e.busy) setState("thinking", "");
+        speaker.film = e.voice ?? null;
         updateLinkFacts(e);
         break;
       case "user":
@@ -925,7 +1026,11 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
         setBusy(false);
         break;
       case "speak":
-        speak(e.text, () => link?.speechEnded?.(e.id));
+        if (e.chunks) playFilmVoice(e.id, e.chunks, e.text, () => link?.speechEnded?.(e.id));
+        else speak(e.text, () => link?.speechEnded?.(e.id));
+        break;
+      case "speechAudio":
+        filmVoiceChunk(e);
         break;
       case "stopSpeaking":
         stopSpeaking();
@@ -1229,7 +1334,7 @@ button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !im
 
   function updateLinkFacts(hello) {
     if (!link) return;
-    const voiceName = speaker.enabled ? (speaker.voice?.name ?? "browser default") : "muted";
+    const voiceName = speaker.enabled ? (speaker.film ?? speaker.voice?.name ?? "browser default") : "muted";
     if (link.kind === "local") {
       if (hello) ui.memoryCount = hello.memories;
       facts($("link-facts"), [["Brain", "Claude, via this computer"], ["Voice in", ui.listening ? "“Hey JARVIS”, on-device" : "keyboard"], ["Voice out", voiceName], ["Memory", `${ui.memoryCount ?? 0} record(s)`], ["Address", location.host]]);

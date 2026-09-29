@@ -2,7 +2,7 @@ import fs from "node:fs";
 import { createRequire } from "node:module";
 import path from "node:path";
 import { SAMPLE_RATE } from "./microphone.ts";
-import type { SpeechModelPaths } from "./models.ts";
+import type { SpeechModelPaths } from "../models.ts";
 
 /**
  * The speech models the ears use, behind a small interface so the listening logic can be

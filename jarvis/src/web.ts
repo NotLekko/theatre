@@ -7,13 +7,28 @@ import { EFFORT_LEVELS, isEffort, type Config } from "./config.ts";
 import type { Confirmation } from "./listen/wake.ts";
 import { greeting } from "./persona.ts";
 import { Session, type SessionUI } from "./session.ts";
+import { FX_PRESETS, isFxPreset } from "./speech/fx.ts";
+import { DEFAULT_NEURAL_VOICE, type NeuralVoiceName } from "./speech/kokoro.ts";
+import { FilmVoice, speechChunks } from "./speech/narrator.ts";
+import { encodeWav } from "./speech/wav.ts";
 import { openInBrowser, systemSnapshot } from "./tools.ts";
 
 const HUD_FILE = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "web", "hud.html");
 
 /** Everything the server tells the page, as server-sent events. */
 export type WebEvent =
-  | { type: "hello"; model: string; effort: string; honorific: string; listening: boolean; microphone?: string; busy: boolean; memories: number }
+  | {
+      type: "hello";
+      model: string;
+      effort: string;
+      honorific: string;
+      listening: boolean;
+      microphone?: string;
+      busy: boolean;
+      memories: number;
+      /** The film voice, when the server is rendering speech. */
+      voice?: string;
+    }
   | { type: "user"; text: string; spoken: boolean }
   | { type: "waiting" }
   | { type: "text"; delta: string }
@@ -30,16 +45,23 @@ export type WebEvent =
   | { type: "voiceInput"; on: boolean; microphone?: string }
   | { type: "turnStarted"; input: string }
   | { type: "turnEnded"; outcome: string }
-  | { type: "speak"; id: string; text: string }
+  /** With `chunks`, the film voice follows as that many speechAudio events; otherwise the page speaks. */
+  | { type: "speak"; id: string; text: string; chunks?: number }
+  | { type: "speechAudio"; id: string; index: number; wav: string }
   | { type: "stopSpeaking" }
   | { type: "approval"; id: string; question: string }
   | { type: "approvalClosed"; id: string; answer?: Confirmation; byVoice?: boolean };
 
 /** Rough speaking time, so a reply still finishes if no page reports back. */
-const speakingTimeMs = (text: string) => 4000 + text.split(/\s+/).length * 450;
+const speakingTimeMs = (text: string) => 6000 + text.split(/\s+/).length * 450;
+
+// How long a reply waits for the film voice to load from disk before the browser's voice stands in.
+const LOAD_WAIT_MS = 20_000;
 
 /** The session's face in a browser: events out over SSE, answers back over POST. */
 class WebUI implements SessionUI {
+  /** Renders the film voice for the page to play, once it has loaded. */
+  film: FilmVoice | null = null;
   readonly #clients = new Set<http.ServerResponse>();
   readonly #speeches = new Map<string, () => void>();
   readonly #approvals = new Map<string, (answer: Confirmation) => void>();
@@ -83,22 +105,50 @@ class WebUI implements SessionUI {
   turnStarted = (input: string) => this.broadcast({ type: "turnStarted", input });
   turnEnded = (outcome: string) => this.broadcast({ type: "turnEnded", outcome });
 
-  /** The page speaks, and reports back when it's done. */
+  /** The page speaks (in the film voice, rendered here, when it's ready) and reports back when it's done. */
   speak(text: string): Promise<void> {
     if (this.#clients.size === 0 || !text.trim()) return Promise.resolve();
+    for (const end of [...this.#speeches.values()]) end();
     const id = randomUUID();
+    const rendering = new AbortController();
     return new Promise((resolve) => {
       const timer = setTimeout(done, speakingTimeMs(text));
       function done() {
         clearTimeout(timer);
+        rendering.abort();
         resolve();
       }
       this.#speeches.set(id, () => {
         this.#speeches.delete(id);
         done();
       });
-      this.broadcast({ type: "speak", id, text });
+      void this.#narrate(id, text, rendering.signal);
     });
+  }
+
+  /** Sends a line to the page: as film-voice audio, or as text for the browser's own voice. */
+  async #narrate(id: string, text: string, signal: AbortSignal): Promise<void> {
+    const film = this.film;
+    const narrator = film?.narrator ?? (await film?.whenReady(LOAD_WAIT_MS)) ?? null;
+    if (signal.aborted) return;
+    if (!narrator) {
+      this.broadcast({ type: "speak", id, text });
+      return;
+    }
+    const chunks = speechChunks(text);
+    this.broadcast({ type: "speak", id, text, chunks: chunks.length });
+    try {
+      let index = 0;
+      for await (const samples of narrator.render(chunks, signal)) {
+        const wav = encodeWav(samples, narrator.sampleRate).toString("base64");
+        this.broadcast({ type: "speechAudio", id, index: index++, wav });
+      }
+    } catch (err) {
+      if (signal.aborted) return;
+      film?.fail();
+      this.note(`🔊 My film voice failed (${(err as Error).message}). The browser's voice will stand in.`);
+      this.broadcast({ type: "speak", id, text });
+    }
   }
 
   speechEnded(id: string): void {
@@ -211,10 +261,30 @@ async function readJson(req: http.IncomingMessage): Promise<Record<string, unkno
   return body as Record<string, unknown>;
 }
 
+/** Loads the film voice for the page, unless speech is off or the system voice was chosen. */
+function startFilmVoice(config: Config, ui: WebUI, announce: () => void): FilmVoice | null {
+  if (!config.voice || config.voiceEngine !== "neural") return null;
+  return new FilmVoice({
+    modelsDir: path.join(config.home, "models"),
+    voice: (config.voiceName as NeuralVoiceName | undefined) ?? DEFAULT_NEURAL_VOICE,
+    fx: config.voiceFx,
+    download: true,
+    onReady: (downloaded) => {
+      if (downloaded) ui.note("🔊 My film voice is ready.");
+      announce();
+    },
+    onError: (err) => ui.note(`🔊 I couldn't load my film voice (${err.message}). The browser's voice will stand in.`),
+  });
+}
+
 /** Serves the HUD on this machine only, backed by a full JARVIS session. */
-export async function startWebServer(config: Config, options: { port: number; session?: (ui: SessionUI) => Session }) {
+export async function startWebServer(
+  config: Config,
+  options: { port: number; session?: (ui: SessionUI) => Session; film?: (ui: WebUI) => FilmVoice | null },
+) {
   const ui = new WebUI();
   const session = options.session?.(ui) ?? new Session(config, ui);
+  ui.film = options.film ? options.film(ui) : startFilmVoice(config, ui, () => ui.broadcast(hello()));
   const inbox = new Inbox();
   const token = randomBytes(24).toString("hex");
   let stopped = false;
@@ -227,6 +297,7 @@ export async function startWebServer(config: Config, options: { port: number; se
     listening: session.listening,
     busy: session.busy,
     memories: session.memory.list().length,
+    voice: ui.film?.narrator ? `film voice · ${ui.film.fx}` : undefined,
   });
 
   /** A few commands the page can send as text, as in the terminal. */
@@ -245,6 +316,14 @@ export async function startWebServer(config: Config, options: { port: number; se
       case "clear":
         session.reset();
         ui.note("Fresh conversation. Long-term memory carried over.");
+        break;
+      case "voice":
+        if (!isFxPreset(arg)) ui.error(`Choose how the film voice sounds: ${FX_PRESETS.join(", ")}.`);
+        else if (!ui.film?.usable) ui.error("Effects apply to the film voice, which isn't in use.");
+        else {
+          ui.film.fx = arg;
+          ui.note(`Voice effects: ${arg}.`);
+        }
         break;
       default:
         ui.error(`Unknown command /${name}.`);
@@ -362,6 +441,7 @@ export async function startWebServer(config: Config, options: { port: number; se
       stopped = true;
       session.interrupt();
       session.close();
+      ui.film?.close();
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
       await loop;
