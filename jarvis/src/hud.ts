@@ -162,10 +162,47 @@ export class TerminalRenderer implements TurnObserver {
   }
 
   alert(text: string): void {
-    // Called from a timer, possibly while the user is typing: clear the prompt line first.
+    this.settle();
+    this.#write(color.gold(`  ⏰ ${text}`) + "\n");
+  }
+
+  /** Wipes the current line, e.g. a prompt that output is about to replace. */
+  clearLine(): void {
     this.#spinner.stop();
     if (out.isTTY) out.write("\r\x1b[2K");
     else this.#newline();
-    this.#write(color.gold(`  ⏰ ${text}`) + "\n");
+    this.#atLineStart = true;
+    this.#mode = "idle";
+  }
+
+  /** A one-line status that the next status (or clearStatus) overwrites. */
+  status(text: string): void {
+    if (!out.isTTY) return;
+    this.#spinner.stop();
+    out.write(`\r\x1b[2K  ${color.cyan("⟳")} ${color.dim(text)}`);
+    this.#atLineStart = false;
+  }
+
+  clearStatus(): void {
+    if (!out.isTTY) return;
+    out.write("\r\x1b[2K");
+    this.#atLineStart = true;
+  }
+
+  /**
+   * Replaces a prompt that readline just abandoned. Cancelling a question moves readline
+   * to a fresh line, so step back up and overwrite the prompt with `text`.
+   */
+  replacePrompt(text: string): void {
+    this.#spinner.stop();
+    if (out.isTTY) out.write("\x1b[1A\r\x1b[2K");
+    this.#atLineStart = true;
+    this.#mode = "idle";
+    this.#write(text + "\n");
+  }
+
+  /** Echoes a spoken request where the typed one would have been. */
+  heard(text: string): void {
+    this.replacePrompt(color.bold(color.gold("You ▸ ")) + text + color.dim("  🎙"));
   }
 }

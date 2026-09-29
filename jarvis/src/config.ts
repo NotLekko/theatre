@@ -27,6 +27,10 @@ export interface Config {
   userName: string | undefined;
   home: string;
   fastBoot: boolean;
+  /** Listen for "Hey JARVIS" from the start. */
+  listen: boolean;
+  /** Microphone device index for PvRecorder; -1 is the system default. */
+  micDevice: number;
   location: Location;
 }
 
@@ -45,6 +49,7 @@ Usage:
 
 Options:
   --no-voice         keep quiet (text only)
+  --listen           listen for "Hey JARVIS" (speech is recognized on this machine)
   --effort <level>   thinking effort: ${EFFORT_LEVELS.join(", ")} (default: medium)
   --model <id>       Claude model id (default: ${DEFAULT_MODEL})
   --fast             skip the boot animation
@@ -56,9 +61,11 @@ Environment:
   JARVIS_USER_NAME   your name
   JARVIS_VOICE       set to "off" to disable speech by default
   JARVIS_VOICE_NAME  text-to-speech voice (e.g. Daniel on macOS, en-gb on espeak)
+  JARVIS_LISTEN      set to "on" to listen for "Hey JARVIS" by default
+  JARVIS_MIC_DEVICE  microphone device index (default: the system default)
   JARVIS_EFFORT      default thinking effort
   JARVIS_MODEL       default model id
-  JARVIS_HOME        where memories are stored (default: ~/.jarvis)
+  JARVIS_HOME        where memories and speech models are stored (default: ~/.jarvis)
   JARVIS_CITY, JARVIS_REGION, JARVIS_COUNTRY
                      your approximate location, for local search results
                      (country is a two-letter code such as GB or US)`;
@@ -68,6 +75,7 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
     args: argv,
     options: {
       voice: { type: "boolean" },
+      listen: { type: "boolean" },
       fast: { type: "boolean" },
       effort: { type: "string" },
       model: { type: "string" },
@@ -83,6 +91,12 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
   }
   const voiceSetting = env.JARVIS_VOICE?.trim().toLowerCase();
   const voiceOffInEnv = voiceSetting === "off" || voiceSetting === "0" || voiceSetting === "false";
+  const listenSetting = env.JARVIS_LISTEN?.trim().toLowerCase();
+  const listenOnInEnv = listenSetting === "on" || listenSetting === "1" || listenSetting === "true";
+  const micDevice = env.JARVIS_MIC_DEVICE?.trim() ? Number(env.JARVIS_MIC_DEVICE) : -1;
+  if (!Number.isInteger(micDevice) || micDevice < -1) {
+    throw new Error(`JARVIS_MIC_DEVICE must be a device index (0, 1, ...), not "${env.JARVIS_MIC_DEVICE}".`);
+  }
 
   return {
     help: values.help ?? false,
@@ -96,6 +110,8 @@ export function loadConfig(argv: string[], env: NodeJS.ProcessEnv = process.env)
       userName: env.JARVIS_USER_NAME || undefined,
       home: env.JARVIS_HOME || path.join(os.homedir(), ".jarvis"),
       fastBoot: values.fast ?? false,
+      listen: values.listen ?? listenOnInEnv,
+      micDevice,
       location: {
         city: env.JARVIS_CITY || undefined,
         region: env.JARVIS_REGION || undefined,

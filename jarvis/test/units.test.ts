@@ -42,6 +42,16 @@ describe("loadConfig", () => {
     assert.equal(loadConfig(["--voice"], { JARVIS_VOICE: "off" }).config.voice, true);
   });
 
+  it("turns on voice input from the flag or the environment", () => {
+    assert.equal(loadConfig([], {}).config.listen, false);
+    assert.equal(loadConfig(["--listen"], {}).config.listen, true);
+    assert.equal(loadConfig([], { JARVIS_LISTEN: "on" }).config.listen, true);
+    assert.equal(loadConfig(["--no-listen"], { JARVIS_LISTEN: "on" }).config.listen, false);
+    assert.equal(loadConfig([], {}).config.micDevice, -1);
+    assert.equal(loadConfig([], { JARVIS_MIC_DEVICE: "2" }).config.micDevice, 2);
+    assert.throws(() => loadConfig([], { JARVIS_MIC_DEVICE: "usb" }), /device index/);
+  });
+
   it("rejects an unknown effort level", () => {
     assert.throws(() => loadConfig(["--effort", "ludicrous"], {}), /Unknown effort level/);
   });

@@ -19,5 +19,9 @@
   "devDependencies": {
     "@types/node": "^22.20.4",
     "typescript": "^5.9.3"
+  },
+  "optionalDependencies": {
+    "@picovoice/pvrecorder-node": "^1.2.9",
+    "sherpa-onnx-node": "^1.13.8"
   }
 }

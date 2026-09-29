@@ -6,11 +6,11 @@ interface Engine {
   args: string[];
 }
 
-function hasCommand(command: string): boolean {
+export function hasCommand(command: string): boolean {
   const probe =
     process.platform === "win32"
       ? spawnSync("where", [command], { stdio: "ignore" })
-      : spawnSync("sh", ["-c", `command -v ${command}`], { stdio: "ignore" });
+      : spawnSync("/bin/sh", ["-c", `command -v ${command}`], { stdio: "ignore" });
   return probe.status === 0;
 }
 
