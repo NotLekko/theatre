@@ -1,0 +1,23 @@
+{
+  "name": "jarvis",
+  "version": "0.1.0",
+  "description": "J.A.R.V.I.S. - a terminal AI assistant inspired by Iron Man, powered by Claude",
+  "type": "module",
+  "private": true,
+  "scripts": {
+    "start": "node src/index.ts",
+    "typecheck": "tsc",
+    "test": "node --test \"test/*.test.ts\""
+  },
+  "engines": {
+    "node": ">=22.18"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.129.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "typescript": "^5.9.3"
+  }
+}
