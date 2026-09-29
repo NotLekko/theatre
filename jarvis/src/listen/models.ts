@@ -7,10 +7,21 @@ import type { ReadableStream } from "node:stream/web";
 import { formatBytes } from "../tools.ts";
 
 /** sherpa-onnx's model releases on GitHub. */
-export const MODEL_RELEASES = "https://github.com/k2-fsa/sherpa-onnx/releases/download/asr-models";
+export const MODEL_RELEASES = "https://github.com/k2-fsa/sherpa-onnx/releases/download";
 
 const VAD_FILE = "silero_vad.onnx";
-const ASR_NAME = "sherpa-onnx-moonshine-tiny-en-int8";
+
+interface Archive {
+  name: string;
+  release: string;
+  label: string;
+}
+const ASR: Archive = { name: "sherpa-onnx-moonshine-tiny-en-int8", release: "asr-models", label: "speech recognition model" };
+const KWS: Archive = {
+  name: "sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01",
+  release: "kws-models",
+  label: "wake word model",
+};
 
 export interface SpeechModelPaths {
   /** Silero voice activity detector: finds where speech starts and stops. */
@@ -23,10 +34,19 @@ export interface SpeechModelPaths {
     cachedDecoder: string;
     tokens: string;
   };
+  /** A streaming keyword spotter that hears "Hey JARVIS" even while he's talking. */
+  kws: {
+    encoder: string;
+    decoder: string;
+    joiner: string;
+    tokens: string;
+  };
 }
 
 export function speechModelPaths(dir: string): SpeechModelPaths {
-  const asr = path.join(dir, ASR_NAME);
+  const asr = path.join(dir, ASR.name);
+  const kws = path.join(dir, KWS.name);
+  const kwsFile = (part: string) => path.join(kws, `${part}-epoch-12-avg-2-chunk-16-left-64.int8.onnx`);
   return {
     vad: path.join(dir, VAD_FILE),
     asr: {
@@ -36,6 +56,12 @@ export function speechModelPaths(dir: string): SpeechModelPaths {
       cachedDecoder: path.join(asr, "cached_decode.int8.onnx"),
       tokens: path.join(asr, "tokens.txt"),
     },
+    kws: {
+      encoder: kwsFile("encoder"),
+      decoder: kwsFile("decoder"),
+      joiner: kwsFile("joiner"),
+      tokens: path.join(kws, "tokens.txt"),
+    },
   };
 }
 
@@ -44,26 +70,32 @@ export interface EnsureOptions {
   onProgress?: (message: string) => void;
 }
 
-/** Downloads the speech models into `dir` on first use (about 110 MB) and returns their paths. */
+/** Downloads the speech models into `dir` on first use (about 130 MB) and returns their paths. */
 export async function ensureSpeechModels(dir: string, options: EnsureOptions = {}): Promise<SpeechModelPaths> {
   const { baseUrl = MODEL_RELEASES, onProgress = () => {} } = options;
   const paths = speechModelPaths(dir);
 
   if (!fs.existsSync(paths.vad)) {
-    await download(`${baseUrl}/${VAD_FILE}`, paths.vad, "voice activity model", onProgress);
+    await download(`${baseUrl}/${ASR.release}/${VAD_FILE}`, paths.vad, "voice activity model", onProgress);
   }
-  if (!Object.values(paths.asr).every((file) => fs.existsSync(file))) {
-    const archive = path.join(dir, `${ASR_NAME}.tar.bz2`);
-    await download(`${baseUrl}/${ASR_NAME}.tar.bz2`, archive, "speech recognition model", onProgress);
-    onProgress("Unpacking speech recognition model");
+  for (const [archive, files] of [
+    [ASR, paths.asr],
+    [KWS, paths.kws],
+  ] as const) {
+    if (Object.values(files).every((file) => fs.existsSync(file))) continue;
+    const local = path.join(dir, `${archive.name}.tar.bz2`);
+    await download(`${baseUrl}/${archive.release}/${archive.name}.tar.bz2`, local, archive.label, onProgress);
+    onProgress(`Unpacking ${archive.label}`);
     try {
-      await untar(archive, dir);
+      await untar(local, dir);
     } finally {
-      fs.rmSync(archive, { force: true });
+      fs.rmSync(local, { force: true });
     }
   }
 
-  const missing = [paths.vad, ...Object.values(paths.asr)].filter((file) => !fs.existsSync(file));
+  const missing = [paths.vad, ...Object.values(paths.asr), ...Object.values(paths.kws)].filter(
+    (file) => !fs.existsSync(file),
+  );
   if (missing.length > 0) {
     throw new Error(`Speech models are incomplete (missing ${missing.join(", ")}). Delete ${dir} and try again.`);
   }

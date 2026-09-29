@@ -85,17 +85,20 @@ You ▸ Run a system diagnostic.  🎙
 ```
 
 - **Wake phrase.** Say "Hey JARVIS" (or "Hi"/"OK JARVIS") at the start of a sentence, followed by your request in the same breath. If you say just "Hey JARVIS", he answers "Yes, sir?" and takes the next thing you say as the request. Other speech is ignored, including sentences that merely mention JARVIS.
+- **Interrupting.** Say "Hey JARVIS" while he's talking and he stops mid-sentence. "Hey JARVIS, what about tomorrow?" gets a new answer; "Hey JARVIS, stop" (or "never mind", "that's enough") just silences him. It works the same while he's working on a request: he drops it and takes the new one.
 - **Approvals.** When a shell command needs your OK, JARVIS asks out loud. Say "yes" or "go ahead" to allow it, or "always" to allow all commands this session. Anything else, or anything unclear, declines.
 - **The keyboard still works.** Type at any time. Ctrl+C interrupts as usual.
 - A pause of about half a second ends a request.
 
-**Private by design.** Speech recognition runs entirely on your computer, with [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), the [Silero](https://github.com/snakers4/silero-vad) voice activity detector and the [Moonshine Tiny](https://github.com/usefulsensors/moonshine) English speech recognizer. Audio never leaves your machine; only the text of a request goes to Claude. While voice input is on, the microphone stays open, so your OS may show its recording indicator. JARVIS only processes the audio while he's waiting for you, and ignores it while he speaks, so he doesn't hear himself. `/listen off` closes the microphone.
+**Private by design.** Speech recognition runs entirely on your computer, with [sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx), the [Silero](https://github.com/snakers4/silero-vad) voice activity detector and the [Moonshine Tiny](https://github.com/usefulsensors/moonshine) English speech recognizer. Audio never leaves your machine; only the text of a request goes to Claude. While voice input is on, the microphone stays open, so your OS may show its recording indicator. JARVIS only processes the audio while he's waiting for you. While he's speaking he listens for "Hey JARVIS" alone, so he doesn't take his own words for yours. `/listen off` closes the microphone.
 
-**First use** downloads about 110 MB of speech models from sherpa-onnx's GitHub releases into `~/.jarvis/models`. This happens once.
+**First use** downloads about 130 MB of speech models from sherpa-onnx's GitHub releases into `~/.jarvis/models`, including a small keyword-spotting model that listens for "Hey JARVIS" while he talks. This happens once.
+
+**Interrupting through speakers.** When JARVIS talks through speakers, your microphone hears him as well as you, and there's no echo cancellation. Interrupting works reliably with headphones. Through speakers it works when you're clearly louder than him at the microphone. In tests with synthesized voices, it caught about 11 in 12 interruptions when his voice was a third as loud as yours, about 3 in 4 at 60%, and about half at 80%. Turning his volume down, or speaking up, helps. He never mistook his own speech for the wake phrase in testing.
 
 **Microphone.** Recording uses the bundled PvRecorder library, so there's nothing to install on macOS, Windows or Linux. On macOS, allow your terminal app under System Settings → Privacy & Security → Microphone. If PvRecorder can't open a device, JARVIS falls back to `sox` or `arecord` if either is installed. To use a microphone other than the default, set `JARVIS_MIC_DEVICE` to its index.
 
-**Limitations.** English only. JARVIS can't be interrupted by voice while he's talking (type something, or press Ctrl+C). Headphones help in noisy rooms, and stop his own voice from reaching the microphone.
+**Limitations.** English only. Headphones help in noisy rooms, and keep his own voice away from the microphone.
 
 ## Configuration
 
@@ -137,7 +140,8 @@ src/
   listen/
     wake.ts           the "Hey JARVIS" wake phrase, and spoken yes/no answers
     voiceInput.ts     the conversation flow: wake phrase, "Yes, sir?", request
-    ears.ts           microphone audio to text: voice activity detection + Moonshine
+    ears.ts           microphone audio to text; hears "Hey JARVIS" while he talks
+    engine.ts         the speech models: Silero VAD, Moonshine, keyword spotter
     microphone.ts     PvRecorder (on a worker thread), or sox/arecord
     recorderWorker.ts the worker thread that reads the microphone
     models.ts         downloads the speech models on first use
@@ -182,4 +186,4 @@ npm test          # unit tests + a streaming integration test against a mock Mes
 npm run typecheck
 ```
 
-The voice-input tests that use the real speech models run when the models are present (in `~/.jarvis/models`, or wherever `JARVIS_TEST_MODELS` points) and `espeak-ng` is installed to synthesize test speech. Otherwise they're skipped.
+The voice-input tests that use the real speech models run when the models are present (in `~/.jarvis/models`, or wherever `JARVIS_TEST_MODELS` points) and `espeak-ng` is installed to synthesize test speech. Otherwise they're skipped. The interruption test also needs two Piper voices from [sherpa-onnx's tts-models release](https://github.com/k2-fsa/sherpa-onnx/releases/tag/tts-models) (`vits-piper-en_GB-alan-medium` and `vits-piper-en_US-amy-low`) unpacked in the folder `JARVIS_TEST_VOICES` points to, because the keyword spotter doesn't recognize espeak-ng's robotic voice. The listening logic itself is also tested without any models, using a fake speech engine.

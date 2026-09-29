@@ -1,4 +1,4 @@
-import { createRequire } from "node:module";
+import { createSherpaEngine, type SpeechEngine } from "./engine.ts";
 import {
   openMicrophone,
   SAMPLE_RATE,
@@ -8,43 +8,7 @@ import {
   type MicrophoneOptions,
 } from "./microphone.ts";
 import type { SpeechModelPaths } from "./models.ts";
-
-// The parts of sherpa-onnx-node used here (the package ships no type declarations).
-interface SpeechSegment {
-  start: number;
-  samples: Float32Array;
-}
-interface Vad {
-  acceptWaveform(samples: Float32Array): void;
-  isDetected(): boolean;
-  isEmpty(): boolean;
-  front(enableExternalBuffer?: boolean): SpeechSegment;
-  pop(): void;
-  clear(): void;
-  reset(): void;
-}
-interface RecognizerStream {
-  acceptWaveform(wave: { sampleRate: number; samples: Float32Array }): void;
-}
-interface Recognizer {
-  createStream(): RecognizerStream;
-  decodeAsync(stream: RecognizerStream): Promise<{ text: string }>;
-}
-interface Sherpa {
-  Vad: new (config: object, bufferSizeInSeconds: number) => Vad;
-  OfflineRecognizer: { createAsync(config: object): Promise<Recognizer> };
-}
-
-function loadSherpa(): Sherpa {
-  try {
-    return createRequire(import.meta.url)("sherpa-onnx-node") as Sherpa;
-  } catch (err) {
-    throw new Error(
-      `speech recognition needs the optional package sherpa-onnx-node, which couldn't be loaded ` +
-        `(${(err as Error).message.split("\n")[0]}). Run npm install in the jarvis folder.`,
-    );
-  }
-}
+import { findWakePhrase } from "./wake.ts";
 
 /** Raised when nobody starts speaking within the allowed time. */
 export class NoSpeechError extends Error {
@@ -61,10 +25,16 @@ export interface ListenOptions {
 
 /** What the rest of JARVIS needs from the ears; tests substitute a fake. */
 export interface Hearing {
-  /** Resolves with the next transcribed utterance. */
+  /**
+   * Resolves with the next transcribed utterance. When several callers are waiting, the
+   * one that asked most recently gets it (a yes/no question outranks general listening).
+   */
   nextUtterance(signal: AbortSignal, options?: ListenOptions): Promise<string>;
-  /** Ignores all sound until `done` settles, so JARVIS doesn't transcribe his own voice. */
-  holdUntil(done: Promise<unknown>): void;
+  /**
+   * Marks JARVIS as speaking `text` until `done` settles. Meanwhile his own voice reaches
+   * the microphone, so only "Hey JARVIS" gets through - and it interrupts him.
+   */
+  whileSpeaking(done: Promise<unknown>, text?: string): void;
 }
 
 interface Waiter {
@@ -81,68 +51,117 @@ export interface EarsOptions {
   openMicrophone?: MicrophoneFactory;
   /** Called if the microphone or recognizer fails after startup. */
   onError: ErrorHandler;
+  /** Called the moment "Hey JARVIS" is heard while he's speaking: stop talking. */
+  onBargeIn: () => void;
 }
 
 const VAD_WINDOW = 512;
+const seconds = (s: number) => Math.round(s * SAMPLE_RATE);
+/** Audio kept from before an interruption, to recover a request said in the same breath. */
+const PRE_ROLL = seconds(2.5);
+/** While he speaks, the recent audio is also transcribed this often, as a second detector. */
+const BARGE_IN_WINDOW = seconds(2);
+const BARGE_IN_STEP = seconds(0.5);
+/** After interrupting, how long to wait for more speech before treating it as "Hey JARVIS" alone. */
+const QUIET_AFTER_BARGE_IN = seconds(1);
+const MAX_CAPTURE = seconds(15);
+
+/** Keeps the most recent audio. */
+class AudioRing {
+  readonly #buffer: Float32Array;
+  #end = 0;
+  #filled = 0;
+
+  constructor(capacity: number) {
+    this.#buffer = new Float32Array(capacity);
+  }
+
+  push(samples: Float32Array): void {
+    for (const sample of samples.length > this.#buffer.length ? samples.subarray(-this.#buffer.length) : samples) {
+      this.#buffer[this.#end] = sample;
+      this.#end = (this.#end + 1) % this.#buffer.length;
+    }
+    this.#filled = Math.min(this.#buffer.length, this.#filled + samples.length);
+  }
+
+  latest(count: number): Float32Array {
+    const n = Math.min(count, this.#filled);
+    const out = new Float32Array(n);
+    const start = (this.#end - n + this.#buffer.length) % this.#buffer.length;
+    for (let i = 0; i < n; i++) out[i] = this.#buffer[(start + i) % this.#buffer.length]!;
+    return out;
+  }
+
+  clear(): void {
+    this.#filled = 0;
+  }
+}
+
+function concat(parts: Float32Array[]): Float32Array {
+  const out = new Float32Array(parts.reduce((n, part) => n + part.length, 0));
+  let offset = 0;
+  for (const part of parts) {
+    out.set(part, offset);
+    offset += part.length;
+  }
+  return out;
+}
+
+const hasWords = (text: string) => /[a-z0-9]/i.test(text);
+const LEADING_NAME = /^\W*(?:(?:hey|hay|hi|ok|okay)\W+)?(?:j[ae]r?)?v[aeiou]?s\b\W*/i;
+const wordsOf = (text: string) => text.toLowerCase().match(/[a-z0-9']+/g) ?? [];
+
+interface Capture {
+  preRoll: Float32Array;
+  live: Float32Array[];
+  liveLength: number;
+  heardSpeech: boolean;
+  /** Words JARVIS was saying when interrupted, if known. */
+  hisWords: Set<string> | null;
+}
 
 /**
- * Turns microphone audio into text: the voice activity detector cuts the stream into
- * utterances and Moonshine transcribes each one, all on this machine. Audio is only
- * processed while someone is waiting for an utterance and nothing is holding the ears.
+ * Turns microphone audio into text, all on this machine. Audio is only processed while
+ * someone is waiting for an utterance, in one of three ways:
+ *
+ * - listening: voice activity detection cuts the audio into utterances; each is transcribed.
+ * - speaking: JARVIS is talking, so the microphone hears him too. Only the wake phrase is
+ *   looked for, by a keyword spotter and by transcribing the last two seconds every half
+ *   second. Either one hearing it interrupts him.
+ * - capturing: after an interruption, the rest of what you say is recorded and turned into
+ *   "Hey JARVIS, <request>" for whoever is waiting.
  */
 export class Ears implements Hearing {
-  readonly #vad: Vad;
-  readonly #recognizer: Recognizer;
+  readonly #engine: SpeechEngine;
   readonly #onError: ErrorHandler;
+  readonly #onBargeIn: () => void;
   #microphone: Microphone | null = null;
   readonly #waiters = new Set<Waiter>();
-  #holds = 0;
-  #wasActive = false;
+  readonly #speaking = new Map<number, string>();
+  #speechId = 0;
+  #mode: "idle" | "listening" | "speaking" | "capturing" = "idle";
+  // Results computed in an earlier mode are stale; this tells them apart.
   #generation = 0;
   #pending = new Float32Array(0);
+  readonly #recent = new AudioRing(PRE_ROLL);
+  #sinceBargeInCheck = 0;
+  #bargeInCheckRunning = false;
+  #capture: Capture | null = null;
   #decoding: Promise<void> = Promise.resolve();
 
-  private constructor(vad: Vad, recognizer: Recognizer, onError: ErrorHandler) {
-    this.#vad = vad;
-    this.#recognizer = recognizer;
-    this.#onError = onError;
+  private constructor(engine: SpeechEngine, options: EarsOptions) {
+    this.#engine = engine;
+    this.#onError = options.onError;
+    this.#onBargeIn = options.onBargeIn;
   }
 
   static async open(models: SpeechModelPaths, options: EarsOptions): Promise<Ears> {
-    const sherpa = loadSherpa();
-    const vad = new sherpa.Vad(
-      {
-        sileroVad: {
-          model: models.vad,
-          threshold: 0.5,
-          minSpeechDuration: 0.25,
-          // How long a pause ends an utterance.
-          minSilenceDuration: 0.6,
-          maxSpeechDuration: 20,
-          windowSize: VAD_WINDOW,
-        },
-        sampleRate: SAMPLE_RATE,
-        numThreads: 1,
-        debug: false,
-      },
-      60,
-    );
-    const recognizer = await sherpa.OfflineRecognizer.createAsync({
-      featConfig: { sampleRate: SAMPLE_RATE, featureDim: 80 },
-      modelConfig: {
-        moonshine: {
-          preprocessor: models.asr.preprocessor,
-          encoder: models.asr.encoder,
-          uncachedDecoder: models.asr.uncachedDecoder,
-          cachedDecoder: models.asr.cachedDecoder,
-        },
-        tokens: models.asr.tokens,
-        numThreads: 2,
-        debug: false,
-      },
-    });
+    return Ears.withEngine(await createSherpaEngine(models), options);
+  }
 
-    const ears = new Ears(vad, recognizer, options.onError);
+  /** Builds ears around any speech engine (tests use a fake one). */
+  static async withEngine(engine: SpeechEngine, options: EarsOptions): Promise<Ears> {
+    const ears = new Ears(engine, options);
     const open =
       options.openMicrophone ?? ((onAudio, onError) => openMicrophone(onAudio, onError, options.microphone));
     ears.#microphone = await open(
@@ -186,12 +205,13 @@ export class Ears implements Hearing {
     });
   }
 
-  holdUntil(done: Promise<unknown>): void {
-    this.#holds++;
-    const release = () => {
-      this.#holds--;
+  whileSpeaking(done: Promise<unknown>, text = ""): void {
+    const id = this.#speechId++;
+    this.#speaking.set(id, text);
+    const finished = () => {
+      this.#speaking.delete(id);
     };
-    done.then(release, release);
+    done.then(finished, finished);
   }
 
   close(): void {
@@ -201,48 +221,151 @@ export class Ears implements Hearing {
   }
 
   #hear(samples: Float32Array): void {
-    if (this.#waiters.size === 0 || this.#holds > 0) {
-      this.#wasActive = false;
+    if (this.#waiters.size === 0) {
+      this.#enter("idle");
       return;
     }
-    if (!this.#wasActive) {
-      // Start fresh: nothing heard while inactive (or still being transcribed) counts.
-      this.#wasActive = true;
-      this.#generation++;
-      this.#pending = new Float32Array(0);
-      this.#vad.clear();
-      this.#vad.reset();
+    this.#recent.push(samples);
+    if (this.#mode === "capturing") {
+      this.#captureMore(samples);
+      return;
     }
-
-    const buffered = new Float32Array(this.#pending.length + samples.length);
-    buffered.set(this.#pending);
-    buffered.set(samples, this.#pending.length);
-    let offset = 0;
-    for (; offset + VAD_WINDOW <= buffered.length; offset += VAD_WINDOW) {
-      this.#vad.acceptWaveform(buffered.subarray(offset, offset + VAD_WINDOW));
-      if (this.#vad.isDetected()) {
-        // Someone has started talking, so stop any "nobody spoke" countdowns.
-        for (const waiter of this.#waiters) clearTimeout(waiter.deadline);
-      }
-      while (!this.#vad.isEmpty()) {
-        const segment = this.#vad.front(false);
-        this.#vad.pop();
-        this.#transcribe(segment.samples, this.#generation);
-      }
-    }
-    this.#pending = buffered.slice(offset);
+    this.#enter(this.#speaking.size > 0 ? "speaking" : "listening");
+    if (this.#mode === "speaking") this.#watchForWakePhrase(samples);
+    else this.#listen(samples);
   }
 
-  #transcribe(samples: Float32Array, generation: number): void {
-    // Decode one utterance at a time, in order.
-    this.#decoding = this.#decoding.then(async () => {
-      const stream = this.#recognizer.createStream();
-      stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples });
-      const { text } = await this.#recognizer.decodeAsync(stream);
-      const heard = text.trim();
-      if (generation !== this.#generation || !/[a-z0-9]/i.test(heard)) return;
-      for (const waiter of [...this.#waiters]) waiter.resolve(heard);
-    }).catch((err: unknown) => this.#fail(err as Error));
+  #enter(mode: "idle" | "listening" | "speaking" | "capturing"): void {
+    if (mode === this.#mode) return;
+    this.#mode = mode;
+    this.#generation++;
+    this.#pending = new Float32Array(0);
+    this.#capture = null;
+    this.#engine.vad.reset();
+    if (mode === "idle") this.#recent.clear();
+    if (mode === "speaking") {
+      this.#engine.wakeWord.reset();
+      this.#sinceBargeInCheck = 0;
+    }
+  }
+
+  /** Feeds the voice activity detector; returns whether speech was detected along the way. */
+  #feedVad(samples: Float32Array): boolean {
+    const buffered = concat([this.#pending, samples]);
+    let offset = 0;
+    let detected = false;
+    for (; offset + VAD_WINDOW <= buffered.length; offset += VAD_WINDOW) {
+      this.#engine.vad.accept(buffered.subarray(offset, offset + VAD_WINDOW));
+      if (this.#engine.vad.speechDetected()) detected = true;
+    }
+    this.#pending = buffered.slice(offset);
+    return detected;
+  }
+
+  #listen(samples: Float32Array): void {
+    if (this.#feedVad(samples)) this.#speechStarted();
+    for (const segment of this.#engine.vad.takeSegments()) {
+      const generation = this.#generation;
+      this.#queue(async () => {
+        const text = await this.#engine.transcribe(segment);
+        if (generation === this.#generation && hasWords(text)) this.#deliver(text);
+      });
+    }
+  }
+
+  #watchForWakePhrase(samples: Float32Array): void {
+    if (this.#engine.wakeWord.accept(samples)) {
+      this.#interrupt();
+      return;
+    }
+    // Second opinion: transcribe the last couple of seconds and look for the phrase in
+    // the text. It catches some of what the keyword spotter misses when he's loud.
+    this.#sinceBargeInCheck += samples.length;
+    if (this.#sinceBargeInCheck < BARGE_IN_STEP || this.#bargeInCheckRunning) return;
+    this.#sinceBargeInCheck = 0;
+    this.#bargeInCheckRunning = true;
+    const generation = this.#generation;
+    const recent = this.#recent.latest(BARGE_IN_WINDOW);
+    this.#queue(async () => {
+      try {
+        const text = await this.#engine.transcribe(recent);
+        if (generation === this.#generation && findWakePhrase(text)) this.#interrupt();
+      } finally {
+        this.#bargeInCheckRunning = false;
+      }
+    });
+  }
+
+  /** "Hey JARVIS" over his speech: stop him, then record the rest of what's said. */
+  #interrupt(): void {
+    const preRoll = this.#recent.latest(PRE_ROLL);
+    const said = [...this.#speaking.values()].join(" ");
+    this.#enter("capturing");
+    this.#capture = {
+      preRoll,
+      live: [],
+      liveLength: 0,
+      heardSpeech: false,
+      hisWords: hasWords(said) ? new Set(wordsOf(said)) : null,
+    };
+    this.#onBargeIn();
+  }
+
+  #captureMore(samples: Float32Array): void {
+    const capture = this.#capture!;
+    capture.live.push(samples);
+    capture.liveLength += samples.length;
+    if (this.#feedVad(samples)) {
+      capture.heardSpeech = true;
+      this.#speechStarted();
+    }
+    this.#engine.vad.takeSegments();
+    const finished = capture.heardSpeech
+      ? !this.#engine.vad.speechDetected()
+      : capture.liveLength >= QUIET_AFTER_BARGE_IN;
+    if (finished || capture.liveLength >= MAX_CAPTURE) this.#finishCapture(capture);
+  }
+
+  #finishCapture(capture: Capture): void {
+    // Back to listening, in the same generation so the result below still counts.
+    this.#mode = "listening";
+    this.#capture = null;
+    this.#pending = new Float32Array(0);
+    this.#engine.vad.reset();
+    const generation = this.#generation;
+    this.#queue(async () => {
+      // A request usually begins in the same breath as "Hey JARVIS", before he has stopped,
+      // so transcribe from before the interruption and take what follows the phrase. If
+      // the phrase got lost under his voice, use what came after he stopped.
+      const live = concat(capture.live);
+      let command = findWakePhrase(await this.#engine.transcribe(concat([capture.preRoll, live])))?.command ?? "";
+      if (!command && capture.heardSpeech) {
+        // The tail of "Jarvis" itself can land after the interruption point.
+        command = (await this.#engine.transcribe(live)).replace(LEADING_NAME, "");
+      }
+      // Words after the phrase may be his own voice, still playing. If we know what he was
+      // saying, drop a "request" made only of his words; if not, only trust speech that
+      // continued after he stopped.
+      const echo = capture.hisWords
+        ? wordsOf(command).every((word) => capture.hisWords!.has(word))
+        : !capture.heardSpeech;
+      if (echo) command = "";
+      if (generation === this.#generation) this.#deliver(hasWords(command) ? `Hey Jarvis, ${command}` : "Hey Jarvis.");
+    });
+  }
+
+  #speechStarted(): void {
+    // Someone has started talking, so stop any "nobody spoke" countdowns.
+    for (const waiter of this.#waiters) clearTimeout(waiter.deadline);
+  }
+
+  #deliver(text: string): void {
+    [...this.#waiters].at(-1)?.resolve(text);
+  }
+
+  /** Runs recognition jobs one at a time, in order. */
+  #queue(job: () => Promise<void>): void {
+    this.#decoding = this.#decoding.then(job).catch((err: unknown) => this.#fail(err as Error));
   }
 
   #fail(err: Error): void {

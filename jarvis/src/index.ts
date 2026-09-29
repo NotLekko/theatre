@@ -9,7 +9,7 @@ import { Jarvis } from "./jarvis.ts";
 import { Ears } from "./listen/ears.ts";
 import { ensureSpeechModels } from "./listen/models.ts";
 import { VoiceInput } from "./listen/voiceInput.ts";
-import type { Confirmation } from "./listen/wake.ts";
+import { isStopRequest, type Confirmation } from "./listen/wake.ts";
 import { MemoryStore } from "./memory.ts";
 import { buildSystemPrompt, farewell, greeting } from "./persona.ts";
 import { Reminders } from "./reminders.ts";
@@ -69,6 +69,8 @@ function parseTypedConfirmation(answer: string): Confirmation {
 interface Input {
   text: string;
   spoken: boolean;
+  /** Whether it was said at the prompt (rather than while JARVIS was busy). */
+  atPrompt: boolean;
 }
 
 async function main(): Promise<void> {
@@ -94,12 +96,20 @@ async function main(): Promise<void> {
   let approveAll = false;
   let closed = false;
   let listening: { ears: Ears; input: VoiceInput } | null = null;
+  /** "Hey JARVIS" heard while he was working on something: the request that came with it. */
+  let interruption: { request: string } | null = null;
 
-  /** Speaks a line; while it plays the microphone ignores everything, so JARVIS doesn't hear himself. */
+  function takeInterruption(): string | undefined {
+    const request = interruption?.request;
+    interruption = null;
+    return request;
+  }
+
+  /** Speaks a line. While it plays, the ears only listen for "Hey JARVIS", which cuts him off. */
   function speak(text: string): Promise<void> {
     voice.speak(text);
     const done = voice.finished(120_000);
-    listening?.ears.holdUntil(done);
+    listening?.ears.whileSpeaking(done, text);
     return done;
   }
 
@@ -148,9 +158,13 @@ async function main(): Promise<void> {
           stopListening();
           aside(() => renderer.error(`Voice input stopped: ${err.message}`));
         },
+        onBargeIn: () => {
+          voice.stop();
+          aside(() => renderer.note("  🎙 (interrupted)"));
+        },
       });
-      // Don't transcribe anything JARVIS is already saying.
-      ears.holdUntil(voice.finished(30_000));
+      // He may still be finishing a sentence.
+      ears.whileSpeaking(voice.finished(30_000));
       const input = new VoiceInput({
         hearing: ears,
         honorific: config.honorific,
@@ -219,6 +233,16 @@ async function main(): Promise<void> {
     const controller = new AbortController();
     current = controller;
     voice.stop();
+    // "Hey JARVIS" while he's working drops the current request; the main loop then takes
+    // up the new one (or just stands by, if you only said "stop").
+    const listener = new AbortController();
+    listening?.input.waitForWakePhrase(listener.signal).then(
+      (request) => {
+        interruption = { request };
+        controller.abort();
+      },
+      () => {},
+    );
     const ctx: ToolContext = {
       memory,
       reminders,
@@ -238,10 +262,11 @@ async function main(): Promise<void> {
       void speak(result.text);
       return true;
     } catch (err) {
-      if (controller.signal.aborted) renderer.note("  (interrupted)");
+      if (controller.signal.aborted) renderer.note(interruption ? "  🎙 (interrupted)" : "  (interrupted)");
       else renderer.error(describeError(err, jarvis.model));
       return false;
     } finally {
+      listener.abort();
       current = null;
     }
   }
@@ -332,16 +357,34 @@ async function main(): Promise<void> {
     return true;
   }
 
-  /** Waits for the next request, typed or (when listening) spoken. Resolves null on Ctrl+C or Ctrl+D. */
-  async function nextInput(): Promise<Input | null> {
+  /** The next spoken request, skipping any that only ask JARVIS to stop. */
+  async function voiceRequest(voiceInput: VoiceInput, signal: AbortSignal, woken: boolean): Promise<string> {
+    let request = woken ? await voiceInput.askForRequest(signal) : "";
+    while (true) {
+      request ||= await voiceInput.waitForCommand(signal);
+      if (!isStopRequest(request)) return request;
+      aside(() => renderer.note("  🎙 Standing by."));
+      request = "";
+    }
+  }
+
+  /**
+   * Waits for the next request, typed or (when listening) spoken. `woken` means "Hey JARVIS"
+   * was just heard on its own, so he starts by asking what you'd like. Resolves null on
+   * Ctrl+C or Ctrl+D.
+   */
+  async function nextInput(woken = false): Promise<Input | null> {
     const controller = new AbortController();
     idlePrompt = controller;
     const typed = rl
       .question(promptText, { signal: controller.signal })
-      .then((text): Input => ({ text, spoken: false }));
+      .then((text): Input => ({ text, spoken: false, atPrompt: true }));
     // If the microphone fails, voice drops out of the race and the keyboard carries on.
     const spoken = listening
-      ? listening.input.waitForCommand(controller.signal).then((text): Input => ({ text, spoken: true }), never<Input>)
+      ? voiceRequest(listening.input, controller.signal, woken).then(
+          (text): Input => ({ text, spoken: true, atPrompt: true }),
+          never<Input>,
+        )
       : never<Input>();
     try {
       return await Promise.race([typed, spoken]);
@@ -397,11 +440,17 @@ async function main(): Promise<void> {
 
     if (interactive) {
       while (!closed) {
-        const input = await nextInput();
+        // A request spoken while he was busy goes next; "stop" just ends what he was doing.
+        const spokenWhileBusy = takeInterruption();
+        if (spokenWhileBusy && isStopRequest(spokenWhileBusy)) renderer.note("  🎙 Standing by.");
+        const input: Input | null =
+          spokenWhileBusy && !isStopRequest(spokenWhileBusy)
+            ? { text: spokenWhileBusy, spoken: true, atPrompt: false }
+            : await nextInput(spokenWhileBusy === "");
         // Ctrl+C or Ctrl+D at the prompt. Cancelling the question already ended the prompt line.
         if (!input) break;
         if (input.spoken) {
-          renderer.heard(input.text);
+          renderer.heard(input.text, input.atPrompt);
           await converse(input.text);
         } else if (!(await handleLine(input.text))) {
           break;

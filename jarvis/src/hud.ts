@@ -201,8 +201,13 @@ export class TerminalRenderer implements TurnObserver {
     this.#write(text + "\n");
   }
 
-  /** Echoes a spoken request where the typed one would have been. */
-  heard(text: string): void {
-    this.replacePrompt(color.bold(color.gold("You ▸ ")) + text + color.dim("  🎙"));
+  /** Echoes a spoken request, in place of the prompt it was said at if there was one. */
+  heard(text: string, atPrompt = true): void {
+    const line = color.bold(color.gold("You ▸ ")) + text + color.dim("  🎙");
+    if (atPrompt) this.replacePrompt(line);
+    else {
+      this.settle();
+      this.#write(line + "\n");
+    }
   }
 }
