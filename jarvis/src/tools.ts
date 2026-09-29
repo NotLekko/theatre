@@ -157,7 +157,7 @@ export function runCommand(command: string, timeoutMs: number, signal: AbortSign
   });
 }
 
-function openInBrowser(url: string): Promise<void> {
+export function openInBrowser(url: string): Promise<void> {
   const [command, args] =
     process.platform === "darwin"
       ? ["open", [url]]
@@ -207,6 +207,43 @@ function diskUsage(target: string): Record<string, string> | string {
   } catch (err) {
     return `unavailable (${(err as Error).message})`;
   }
+}
+
+export interface SystemSnapshot {
+  host: string;
+  os: string;
+  uptimeSeconds: number;
+  cpuPercent: number;
+  cores: number;
+  memoryPercent: number;
+  memoryTotal: string;
+  diskPercent: number | null;
+  diskFree: string | null;
+}
+
+/** Live numbers for a dashboard. */
+export async function systemSnapshot(): Promise<SystemSnapshot> {
+  const total = os.totalmem();
+  let diskPercent: number | null = null;
+  let diskFree: string | null = null;
+  try {
+    const stats = fs.statfsSync(os.homedir());
+    diskPercent = Math.round((1 - stats.bfree / stats.blocks) * 100);
+    diskFree = formatBytes(stats.bavail * stats.bsize);
+  } catch {
+    // Not available on this platform.
+  }
+  return {
+    host: os.hostname(),
+    os: `${os.type()} ${os.release()}`,
+    uptimeSeconds: Math.round(os.uptime()),
+    cpuPercent: Math.round((await cpuUtilization()) * 100),
+    cores: os.cpus().length,
+    memoryPercent: Math.round((1 - os.freemem() / total) * 100),
+    memoryTotal: formatBytes(total),
+    diskPercent,
+    diskFree,
+  };
 }
 
 // ---------------------------------------------------------------------------

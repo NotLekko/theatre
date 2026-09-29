@@ -98,6 +98,7 @@ function openCommand(
     let closing = false;
 
     child.stdout.on("data", (chunk: Buffer) => {
+      markStarted();
       const data = leftover ? Buffer.concat([leftover, chunk]) : chunk;
       const usable = data.length - (data.length % 2);
       leftover = usable < data.length ? data.subarray(usable) : null;
@@ -117,16 +118,19 @@ function openCommand(
     const failure = (reason: string) => new Error(`${command} ${reason}${stderr.trim() ? `: ${stderr.trim()}` : ""}`);
     child.on("error", (err) => (started ? onError(err) : reject(err)));
     child.on("exit", (code) => {
+      clearTimeout(grace);
       if (!started) reject(failure(`exited with code ${code}`));
       else if (!closing) onError(failure("stopped recording"));
     });
-    // A recorder that can't open the device exits almost immediately; one that's still
-    // running after a moment is recording.
-    setTimeout(() => {
-      if (child.exitCode !== null || child.killed) return;
+    // A recorder that can't open the device exits without producing audio; one that's
+    // recording sends its first samples within moments. Give a slow one a few seconds.
+    function markStarted() {
+      if (started || child.exitCode !== null) return;
       started = true;
+      clearTimeout(grace);
       resolve(microphone);
-    }, 400);
+    }
+    const grace = setTimeout(markStarted, 3000);
   });
 }
 

@@ -6,6 +6,7 @@
   "private": true,
   "scripts": {
     "start": "node src/index.ts",
+    "web": "node src/index.ts --web",
     "typecheck": "tsc",
     "test": "node --test \"test/*.test.ts\""
   },

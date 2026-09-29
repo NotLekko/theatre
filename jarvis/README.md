@@ -23,6 +23,7 @@ JARVIS ▸ Done. I'll interrupt you at 18:42, sir.
 - **Remembers you.** Long-term memory across sessions in `~/.jarvis/memory.json`. Tell it your name, preferences, or projects, or ask it to remember something.
 - **Keeps time.** The date and time, plus reminders that interrupt you with a spoken alert.
 - **Shows its work.** Streams answers live, with short progress notes and a status line for each tool it uses. Ctrl+C interrupts at any point.
+- **Looks the part.** `npm run web` opens the holographic display from the films in your browser: an animated arc reactor that reacts as he listens, thinks and speaks, with live diagnostics, an activity log and the conversation.
 
 ## Quick start
 
@@ -33,6 +34,12 @@ cd jarvis
 npm install
 export ANTHROPIC_API_KEY=sk-ant-...   # or put it in jarvis/.env
 npm start
+```
+
+For the holographic display in your browser (see [The HUD](#the-hud)):
+
+```bash
+npm run web
 ```
 
 To talk to JARVIS instead of typing, start it with `--listen` (see [Voice input](#voice-input)):
@@ -100,6 +107,19 @@ You ▸ Run a system diagnostic.  🎙
 
 **Limitations.** English only. Headphones help in noisy rooms, and keep his own voice away from the microphone.
 
+## The HUD
+
+`npm run web` serves the display at http://127.0.0.1:4242 and opens it in your browser. It's the same JARVIS as the terminal version, with the same tools, memory and reminders, just a different face:
+
+- **The arc reactor** in the middle shows his state. It breathes on standby, sweeps while he processes, flashes amber when he uses a tool, and pulses with each word while he speaks.
+- **The conversation** streams in below it. When he wants to run a command, an approval card appears; choose Proceed, Decline or Allow all this session.
+- **Readouts** on the left show live CPU, memory and disk figures for your computer. The activity log on the right lists every tool he's used and every alert.
+- **Voice.** Replies are spoken by your browser, in a British voice where it has one (Daniel on macOS, Google UK English Male in Chrome). The speaker button mutes him. Browsers only allow speech after you've interacted with the page, so click it once if he's silent. The microphone button turns on "Hey JARVIS" listening, which works as described in [Voice input](#voice-input): recognition runs on your computer, and you can interrupt him mid-sentence.
+
+The server only accepts connections from your own computer. Each run makes a new access token that only the page it serves knows, and it rejects requests from other websites, so a page you visit elsewhere can't instruct JARVIS. Use `--port` (or `JARVIS_PORT`) to pick a different port.
+
+The same page also runs as a hosted artifact on claude.ai, with no setup. There it talks to Claude through your Claude account, speaks through your browser, and keeps its memories in that browser. Browsers don't give hosted pages the microphone, so it takes typed instructions only, and it can't run commands or search the web.
+
 ## Configuration
 
 | Flag / variable | Default | Purpose |
@@ -110,6 +130,8 @@ You ▸ Run a system diagnostic.  🎙
 | `--effort` / `JARVIS_EFFORT` | `medium` | thinking effort. `low` is snappier, `high` is more thorough |
 | `--model` / `JARVIS_MODEL` | `claude-opus-5-5` | Claude model (tuned for Opus 5.5; `claude-sonnet-5-5` also works) |
 | `--fast` | off | skip the boot animation |
+| `--web` (`npm run web`) | off | serve the HUD in your browser instead of using the terminal |
+| `--port` / `JARVIS_PORT` | `4242` | port for the HUD |
 | `JARVIS_HONORIFIC` | `sir` | how JARVIS addresses you (`ma'am`, `boss`, ...) |
 | `JARVIS_USER_NAME` | none | your name |
 | `JARVIS_VOICE_NAME` | `Daniel` (macOS), `en-gb` (espeak) | text-to-speech voice |
@@ -128,12 +150,15 @@ Without an engine, JARVIS runs in text-only mode.
 
 ```
 src/
-  index.ts      terminal REPL: boot sequence, slash commands, approvals, Ctrl+C
+  index.ts      command line: picks the terminal or the web front end
+  session.ts    one conversation: approvals, voice input, interruptions, reminders
+  terminal.ts   the terminal front end: boot sequence, prompts, slash commands
+  web.ts        the web front end: a local server for the HUD
   jarvis.ts     the conversation engine: streams Claude's reply, runs tools, loops
   tools.ts      local tools (time, diagnostics, shell, memory, reminders, browser)
                 plus Anthropic-hosted web search and web fetch
   persona.ts    the system prompt that gives JARVIS his character
-  hud.ts        colours, arc reactor, spinner, streaming renderer
+  hud.ts        terminal colours, ASCII arc reactor, spinner, streaming renderer
   voice.ts      text-to-speech (text goes to the engine on stdin, never through a shell)
   memory.ts     persistent memory file
   reminders.ts  in-session timers
@@ -145,6 +170,8 @@ src/
     microphone.ts     PvRecorder (on a worker thread), or sox/arecord
     recorderWorker.ts the worker thread that reads the microphone
     models.ts         downloads the speech models on first use
+web/
+  hud.html      the holographic display, for both the local server and claude.ai
 ```
 
 Each turn streams a request to the Claude Messages API with JARVIS's tools. When Claude calls a local tool, JARVIS validates the input against the tool's zod schema, runs it, sends the result back, and repeats until Claude answers. Web search and fetch run on Anthropic's side.

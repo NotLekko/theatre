@@ -1,0 +1,1288 @@
+<title>J.A.R.V.I.S.</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Michroma&family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap">
+<style>
+/* Layout: a command deck - system readouts | arc reactor over the conversation | activity - one column on phones. */
+:root {
+  color-scheme: dark;
+  --void: #02070d;
+  --deck: rgba(8, 26, 40, 0.55);
+  --holo: #4fd4ff;
+  --holo-soft: rgba(79, 212, 255, 0.6);
+  --holo-dim: rgba(79, 212, 255, 0.3);
+  --holo-faint: rgba(79, 212, 255, 0.1);
+  --ice: #e2f8ff;
+  --muted: #86aec2;
+  --amber: #ffb547;
+  --amber-dim: rgba(255, 181, 71, 0.35);
+  --alert: #ff6b6b;
+  --font-display: "Michroma", "Eurostile", "Microgramma", "Arial", sans-serif;
+  --font-body: "Rajdhani", "Segoe UI", system-ui, sans-serif;
+  --font-data: "Share Tech Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --glow: 0 0 6px rgba(79, 212, 255, 0.55), 0 0 18px rgba(79, 212, 255, 0.2);
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  background:
+    radial-gradient(ellipse 70% 60% at 50% 38%, rgba(20, 90, 130, 0.28), transparent 70%),
+    repeating-linear-gradient(0deg, rgba(79, 212, 255, 0.035) 0 1px, transparent 1px 36px),
+    repeating-linear-gradient(90deg, rgba(79, 212, 255, 0.035) 0 1px, transparent 1px 36px),
+    var(--void);
+  color: var(--ice);
+  font: 500 16px/1.45 var(--font-body);
+  overflow-x: hidden;
+}
+body::after { /* faint projector scanlines */
+  content: "";
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.18) 0 1px, transparent 1px 3px);
+  mix-blend-mode: multiply;
+}
+
+.deck {
+  height: 100%;
+  display: grid;
+  grid-template-columns: minmax(210px, 270px) minmax(0, 1fr) minmax(210px, 270px);
+  grid-template-rows: auto minmax(0, 1fr);
+  grid-template-areas: "bar bar bar" "left core right";
+  gap: 14px 22px;
+  padding-inline: 22px;
+  padding-block: 14px 18px;
+}
+
+/* Header */
+.bar {
+  grid-area: bar;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 20px;
+  border-bottom: 1px solid var(--holo-dim);
+  padding-bottom: 10px;
+}
+.mark { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; min-width: 0; }
+.mark-name {
+  font: 400 1.35rem/1 var(--font-display);
+  letter-spacing: 0.32em;
+  color: var(--holo);
+  text-shadow: var(--glow);
+}
+.mark-sub {
+  font: 400 0.62rem/1.2 var(--font-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.bar-readouts { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.chip {
+  font: 400 0.8rem/1 var(--font-data);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--holo);
+  border: 1px solid var(--holo-dim);
+  padding: 6px 10px 5px;
+  clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px);
+  background: var(--holo-faint);
+  white-space: nowrap;
+}
+.chip.warn { color: var(--amber); border-color: var(--amber-dim); background: rgba(255, 181, 71, 0.08); }
+.chip.bad { color: var(--alert); border-color: rgba(255, 107, 107, 0.4); }
+
+/* Side panels */
+.panel { display: flex; flex-direction: column; gap: 18px; min-width: 0; min-height: 0; overflow-y: auto; scrollbar-width: thin; scrollbar-color: var(--holo-dim) transparent; }
+.panel-left { grid-area: left; }
+.panel-right { grid-area: right; }
+.block {
+  position: relative;
+  border: 1px solid var(--holo-faint);
+  background: var(--deck);
+  padding: 14px 14px 12px;
+  clip-path: polygon(0 0, calc(100% - 14px) 0, 100% 14px, 100% 100%, 14px 100%, 0 calc(100% - 14px));
+}
+.block::before { /* corner brackets */
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    linear-gradient(var(--holo), var(--holo)) 0 0 / 14px 1px no-repeat,
+    linear-gradient(var(--holo), var(--holo)) 0 0 / 1px 14px no-repeat,
+    linear-gradient(var(--holo), var(--holo)) 100% 100% / 14px 1px no-repeat,
+    linear-gradient(var(--holo), var(--holo)) 100% 100% / 1px 14px no-repeat;
+  opacity: 0.7;
+}
+.label {
+  margin: 0 0 10px;
+  font: 400 0.6rem/1 var(--font-display);
+  letter-spacing: 0.26em;
+  text-transform: uppercase;
+  color: var(--holo-soft);
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+}
+.label small { font: inherit; color: var(--muted); letter-spacing: 0.12em; white-space: nowrap; }
+
+.clock {
+  font: 400 2.9rem/1 var(--font-data);
+  color: var(--ice);
+  text-shadow: var(--glow);
+  font-variant-numeric: tabular-nums;
+}
+.clock span { font-size: 1.3rem; color: var(--holo); margin-left: 2px; }
+.date { margin-top: 8px; font: 400 0.8rem/1.3 var(--font-data); color: var(--muted); text-transform: uppercase; letter-spacing: 0.1em; }
+
+.gauges { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.gauge { display: grid; justify-items: center; gap: 4px; min-width: 0; }
+.gauge svg { width: 100%; max-width: 76px; aspect-ratio: 1; overflow: visible; }
+.gauge .track { fill: none; stroke: var(--holo-faint); stroke-width: 6; }
+.gauge .fill { fill: none; stroke: var(--holo); stroke-width: 6; stroke-linecap: butt; transition: stroke-dashoffset 0.8s ease, stroke 0.4s; filter: drop-shadow(0 0 3px rgba(79, 212, 255, 0.7)); }
+.gauge.hot .fill { stroke: var(--amber); filter: drop-shadow(0 0 3px rgba(255, 181, 71, 0.7)); }
+.gauge .ticks { fill: none; stroke: var(--holo-dim); stroke-width: 1; stroke-dasharray: 1 5.28; }
+.gauge text { font: 400 15px var(--font-data); fill: var(--ice); text-anchor: middle; dominant-baseline: central; }
+.gauge figcaption { font: 400 0.5rem/1.2 var(--font-display); letter-spacing: 0.14em; text-transform: uppercase; color: var(--muted); text-align: center; }
+
+.facts { margin: 12px 0 0; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 5px 12px; font: 400 0.78rem/1.3 var(--font-data); }
+.facts dt { color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+.facts dd { margin: 0; color: var(--ice); text-align: right; overflow-wrap: anywhere; }
+
+.bootlog, .activity, .reminders { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; font: 400 0.76rem/1.35 var(--font-data); }
+.bootlog li { display: flex; justify-content: space-between; gap: 10px; color: var(--muted); animation: type-in 0.35s ease both; }
+.bootlog li b { font-weight: 400; color: var(--holo); text-align: right; overflow-wrap: anywhere; }
+.activity li { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 8px; color: var(--ice); animation: type-in 0.35s ease both; }
+.activity li time { color: var(--muted); }
+.activity li.tool span { color: var(--amber); }
+.activity li.alert span { color: var(--alert); }
+.reminders li { display: flex; justify-content: space-between; gap: 10px; }
+.reminders li time { color: var(--amber); }
+.empty { color: var(--muted); font: 400 0.76rem/1.35 var(--font-data); margin: 0; }
+
+/* Centre column */
+.core { grid-area: core; display: flex; flex-direction: column; gap: 14px; min-width: 0; min-height: 0; }
+.reactor-wrap {
+  position: relative;
+  container-type: inline-size;
+  align-self: center;
+  width: min(100%, 46vh, 500px);
+  aspect-ratio: 1;
+  flex: 0 0 auto;
+}
+#reactor {
+  width: 100%;
+  height: 100%;
+  display: block;
+  filter: drop-shadow(0 0 5px rgba(79, 212, 255, 0.55)) drop-shadow(0 0 18px rgba(79, 212, 255, 0.18));
+}
+.reactor-center {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 6px;
+  pointer-events: none;
+  text-align: center;
+}
+.state {
+  /* Sized to the reactor so even PROCESSING fits inside the core. */
+  font: 400 clamp(8px, 2.4cqi, 13px)/1 var(--font-display);
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: var(--ice);
+  /* A dark halo keeps the label legible over the bright core. */
+  text-shadow: 0 0 3px var(--void), 0 0 8px var(--void), 0 0 16px rgba(2, 7, 13, 0.9);
+  padding-left: 0.22em;
+}
+.substate {
+  margin-top: -8px;
+  align-self: center;
+  max-width: 100%;
+  min-height: 1.3em;
+  font: 400 0.78rem/1.3 var(--font-data);
+  letter-spacing: 0.06em;
+  color: var(--holo-soft);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+[data-state="thinking"] .state { color: var(--holo); }
+[data-state="speaking"] .state { color: #ffffff; }
+
+.log {
+  flex: 1 1 auto;
+  min-height: 120px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 10px 4px 0;
+  scrollbar-width: thin;
+  scrollbar-color: var(--holo-dim) transparent;
+  mask-image: linear-gradient(transparent, #000 28px);
+}
+.entry { display: grid; grid-template-columns: 5.4rem minmax(0, 1fr); gap: 12px; align-items: baseline; animation: type-in 0.3s ease both; }
+.who { font: 400 0.58rem/1.6 var(--font-display); letter-spacing: 0.2em; text-transform: uppercase; color: var(--muted); text-align: right; }
+.said { overflow-wrap: anywhere; font-size: 1.05rem; line-height: 1.5; }
+.said code { font: 400 0.9em var(--font-data); color: var(--holo); background: var(--holo-faint); padding: 0 4px; }
+.said a { color: var(--holo); }
+.said strong { color: #fff; font-weight: 700; }
+.entry.jarvis .who { color: var(--holo); text-shadow: var(--glow); }
+.entry.jarvis .said { color: var(--ice); }
+.entry.you .said { color: #bcd9e8; }
+.entry.progress .said, .entry.note .said { color: var(--muted); font: 400 0.84rem/1.45 var(--font-data); }
+.entry.tool .said { color: var(--amber); font: 400 0.84rem/1.45 var(--font-data); }
+.entry.tool .who { color: var(--amber); }
+.entry.error .said, .entry.error .who { color: var(--alert); }
+.entry.alert .said { color: var(--amber); font-weight: 700; }
+.entry.alert .who { color: var(--amber); }
+.caret::after { content: "▍"; color: var(--holo); animation: blink 1s steps(1) infinite; margin-left: 2px; }
+
+.approval {
+  border: 1px solid var(--amber-dim);
+  background: rgba(255, 181, 71, 0.07);
+  padding: 12px 14px;
+  display: grid;
+  gap: 10px;
+  clip-path: polygon(0 0, calc(100% - 12px) 0, 100% 12px, 100% 100%, 12px 100%, 0 calc(100% - 12px));
+}
+.approval p { margin: 0; color: var(--ice); }
+.approval .buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Command bar */
+.command { display: flex; gap: 8px; align-items: stretch; flex: 0 0 auto; }
+.command input {
+  flex: 1 1 auto;
+  min-width: 0;
+  font: 500 1.05rem/1 var(--font-body);
+  color: var(--ice);
+  background: rgba(4, 16, 26, 0.85);
+  border: 1px solid var(--holo-dim);
+  padding: 12px 14px;
+  outline: none;
+  clip-path: polygon(10px 0, 100% 0, 100% 100%, 0 100%, 0 10px);
+}
+.command input::placeholder { color: var(--muted); }
+.command input:focus { border-color: var(--holo); box-shadow: inset 0 0 12px rgba(79, 212, 255, 0.25); }
+button {
+  font: 400 0.64rem/1 var(--font-display);
+  letter-spacing: 0.2em;
+  text-transform: uppercase;
+  color: var(--holo);
+  background: var(--holo-faint);
+  border: 1px solid var(--holo-dim);
+  padding: 0 16px;
+  min-height: 42px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, border-color 0.2s;
+}
+button:hover:not(:disabled) { background: rgba(79, 212, 255, 0.2); color: #fff; }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--holo); outline-offset: 2px; }
+button:disabled { opacity: 0.4; cursor: default; }
+button.stop, button.amber { color: var(--amber); border-color: var(--amber-dim); background: rgba(255, 181, 71, 0.08); }
+button.stop:hover, button.amber:hover { background: rgba(255, 181, 71, 0.18) !important; color: #fff; }
+.icon-btn { width: 46px; padding: 0; display: grid; place-items: center; }
+.icon-btn svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 1.6; stroke-linecap: round; stroke-linejoin: round; }
+.icon-btn[aria-pressed="true"] { color: var(--void); background: var(--holo); box-shadow: 0 0 14px rgba(79, 212, 255, 0.6); }
+.icon-btn[aria-pressed="true"]:hover { color: var(--void); background: #8fe6ff; }
+.hint { font: 400 0.76rem/1.3 var(--font-data); color: var(--muted); min-height: 1.3em; margin: -6px 0 0; }
+
+@keyframes type-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+@keyframes blink { 50% { opacity: 0; } }
+
+@media (max-width: 960px) {
+  body { overflow-y: auto; }
+  .deck {
+    height: auto;
+    min-height: 100%;
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: auto;
+    grid-template-areas: "bar" "core" "right" "left";
+    padding-inline: 16px;
+  }
+  .reactor-wrap { width: min(78vw, 340px); }
+  .log { max-height: 46vh; }
+  .panel { overflow: visible; }
+  .clock { font-size: 2.2rem; }
+}
+@media (max-width: 480px) {
+  .entry { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .who { text-align: left; }
+  .mark-sub { display: none; }
+  .command button.send { padding: 0 12px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .entry, .bootlog li, .activity li { animation: none; }
+  .caret::after { animation: none; }
+}
+</style>
+
+<div class="deck" id="deck" data-state="idle">
+  <header class="bar">
+    <div class="mark">
+      <span class="mark-name">J.A.R.V.I.S.</span>
+      <span class="mark-sub">Just A Rather Very Intelligent System</span>
+    </div>
+    <div class="bar-readouts">
+      <span class="chip" id="link-chip">Link · starting</span>
+      <span class="chip" id="model-chip">Claude</span>
+      <span class="chip" id="clock-chip">--:--:--</span>
+    </div>
+  </header>
+
+  <aside class="panel panel-left" aria-label="System readouts">
+    <section class="block">
+      <h2 class="label">Local time <small id="zone">—</small></h2>
+      <div class="clock" id="clock">--:--<span id="clock-sec">:--</span></div>
+      <div class="date" id="date">—</div>
+    </section>
+    <section class="block">
+      <h2 class="label"><span id="gauges-title">Diagnostics</span> <small id="gauges-source">—</small></h2>
+      <div class="gauges" id="gauges"></div>
+      <dl class="facts" id="system-facts"></dl>
+    </section>
+    <section class="block">
+      <h2 class="label">Start-up checks</h2>
+      <ol class="bootlog" id="bootlog"></ol>
+    </section>
+  </aside>
+
+  <main class="core">
+    <div class="reactor-wrap" id="reactor-wrap">
+      <canvas id="reactor" aria-hidden="true"></canvas>
+      <div class="reactor-center">
+        <div class="state" id="state-label" role="status">Standby</div>
+      </div>
+    </div>
+    <div class="substate" id="substate" aria-live="polite"></div>
+    <section class="log" id="log" aria-live="polite" aria-label="Conversation with JARVIS"></section>
+    <form class="command" id="command" autocomplete="off">
+      <button type="button" class="icon-btn" id="mic" aria-pressed="false" aria-label="Listen for Hey JARVIS" title="Listen for “Hey JARVIS”" hidden>
+        <svg viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M8 21h8"/></svg>
+      </button>
+      <label for="prompt" hidden>Instruction for JARVIS</label>
+      <input id="prompt" name="prompt" placeholder="Give JARVIS an instruction" enterkeyhint="send">
+      <button type="submit" class="send" id="send">Send</button>
+      <button type="button" class="stop" id="stop" hidden>Stop</button>
+      <button type="button" class="icon-btn" id="voice" aria-pressed="true" aria-label="Spoken replies" title="Spoken replies">
+        <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path class="waves" d="M16.5 8.5a5 5 0 0 1 0 7M19 6a8.5 8.5 0 0 1 0 12"/></svg>
+      </button>
+    </form>
+    <p class="hint" id="hint"></p>
+  </main>
+
+  <aside class="panel panel-right" aria-label="Activity">
+    <section class="block">
+      <h2 class="label">Activity <small id="activity-count">0</small></h2>
+      <ol class="activity" id="activity"></ol>
+      <p class="empty" id="activity-empty">Tool use and alerts appear here.</p>
+    </section>
+    <section class="block">
+      <h2 class="label">Reminders</h2>
+      <ol class="reminders" id="reminders"></ol>
+      <p class="empty" id="reminders-empty">None pending. Try “remind me in 10 minutes to stretch”.</p>
+    </section>
+    <section class="block">
+      <h2 class="label">Link</h2>
+      <dl class="facts" id="link-facts"></dl>
+    </section>
+  </aside>
+</div>
+
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const TAU = Math.PI * 2;
+  const reducedMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const store = {
+    get(key, fallback) { try { const v = localStorage.getItem("jarvis." + key); return v === null ? fallback : JSON.parse(v); } catch { return fallback; } },
+    set(key, value) { try { localStorage.setItem("jarvis." + key, JSON.stringify(value)); } catch {} },
+  };
+  const escapeHtml = (s) => s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const hhmmss = (d = new Date()) => d.toLocaleTimeString("en-GB", { hour12: false });
+
+  // ---------------------------------------------------------------- state
+  const deck = $("deck");
+  const ui = { state: "idle", busy: false, listening: false, honorific: "sir" };
+  const STATE_LABELS = { idle: "Standby", listening: "Listening", thinking: "Processing", responding: "Responding", speaking: "Speaking", offline: "Offline" };
+  function setState(state, sub) {
+    ui.state = state;
+    deck.dataset.state = state;
+    $("state-label").textContent = STATE_LABELS[state] || state;
+    if (sub !== undefined) $("substate").textContent = sub;
+  }
+  function restingState() {
+    if (speaker.active) return setState("speaking", "");
+    if (ui.busy) return;
+    setState(ui.listening ? "listening" : "idle", ui.listening ? "Say “Hey JARVIS”" : "");
+  }
+  function setBusy(busy) {
+    ui.busy = busy;
+    $("send").hidden = busy;
+    $("stop").hidden = !busy;
+    if (!busy) restingState();
+  }
+
+  // ---------------------------------------------------------------- reactor
+  const canvas = $("reactor");
+  const ctx = canvas.getContext("2d");
+  const BARS = 96;
+  const bars = new Float32Array(BARS);
+  let envelope = 0;       // speech energy, bumped on each spoken word
+  let flash = 0;          // amber flash on tool use
+  let power = 0;          // 0 at load, 1 once "booted"
+  const spin = { ticks: 0, arcs: 0, dashes: 0, text: 0, coils: 0, sweep: 0 };
+  const RING_TEXT = "JUST A RATHER VERY INTELLIGENT SYSTEM  ·  ";
+
+  function resize() {
+    const box = canvas.getBoundingClientRect();
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  new ResizeObserver(resize).observe(canvas);
+
+  const holo = (a) => `rgba(79, 212, 255, ${a})`;
+  const amber = (a) => `rgba(255, 181, 71, ${a})`;
+  function arc(r, a0, a1, width, color) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r, a0, a1);
+    ctx.lineWidth = width;
+    ctx.strokeStyle = color;
+    ctx.stroke();
+  }
+
+  const SPEED = { idle: 1, listening: 1.4, thinking: 4.5, responding: 2.2, speaking: 1.7, offline: 0.3 };
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    const t = now / 1000;
+    const motion = reducedMotion ? 0.12 : 1;
+    const speed = (SPEED[ui.state] ?? 1) * motion;
+    power = Math.min(1, power + dt * 0.8);
+    spin.ticks += dt * 0.05 * speed;
+    spin.arcs -= dt * 0.22 * speed;
+    spin.dashes += dt * 0.12 * speed;
+    spin.text -= dt * 0.035 * speed;
+    spin.coils += dt * 0.08 * speed;
+    spin.sweep += dt * 2.4 * speed;
+    envelope *= Math.pow(0.08, dt);
+    flash *= Math.pow(0.05, dt);
+
+    // Waveform targets by state.
+    for (let i = 0; i < BARS; i++) {
+      const n = (Math.sin(i * 12.9898 + t * 7.3) * 43758.5453) % 1;
+      const noise = Math.abs(n);
+      let target;
+      switch (ui.state) {
+        case "thinking": target = 0.18 + 0.22 * (0.5 + 0.5 * Math.sin(i * 0.39 - t * 7)); break;
+        case "responding": target = 0.16 + noise * 0.3; break;
+        case "speaking": target = 0.1 + envelope * (0.35 + noise * 0.55) + noise * 0.08; break;
+        case "listening": target = 0.1 + 0.08 * (0.5 + 0.5 * Math.sin(t * 2.4)) + noise * 0.1; break;
+        default: target = 0.06 + 0.04 * (0.5 + 0.5 * Math.sin(t * 1.3 + i * 0.13)) + noise * 0.03;
+      }
+      bars[i] += (target * (reducedMotion ? 0.6 : 1) - bars[i]) * Math.min(1, dt * 12);
+    }
+
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    ctx.clearRect(0, 0, w, h);
+    const R = (Math.min(w, h) / 2) * 0.97;
+    const bright = 0.35 + 0.65 * power;
+    ctx.save();
+    ctx.translate(w / 2, h / 2);
+
+    // Outer tick ring.
+    ctx.save();
+    ctx.rotate(spin.ticks);
+    for (let i = 0; i < 120; i++) {
+      const a = (i / 120) * TAU;
+      const major = i % 10 === 0, mid = i % 5 === 0;
+      const r1 = R * (major ? 0.9 : mid ? 0.925 : 0.945), r2 = R * 0.975;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+      ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+      ctx.lineWidth = major ? 2 : 1;
+      ctx.strokeStyle = holo((major ? 0.9 : 0.4) * bright);
+      ctx.stroke();
+    }
+    ctx.restore();
+    arc(R * 0.885, 0, TAU, 1, holo(0.35 * bright));
+
+    // Segmented arcs, counter-rotating; amber when a tool runs.
+    ctx.save();
+    ctx.rotate(spin.arcs);
+    const arcColor = flash > 0.05 ? amber(0.5 + 0.5 * flash) : holo(0.85 * bright);
+    arc(R * 0.845, 0, 1.05, 4, arcColor);
+    arc(R * 0.845, 1.6, 3.5, 2, holo(0.5 * bright));
+    arc(R * 0.845, 4.1, 4.8, 6, arcColor);
+    arc(R * 0.845, 5.3, 5.9, 2, holo(0.5 * bright));
+    ctx.restore();
+
+    // Orbiting name.
+    ctx.save();
+    ctx.rotate(spin.text);
+    const fontPx = Math.max(7, R * 0.042);
+    ctx.font = `${fontPx}px Michroma, Eurostile, Arial, sans-serif`;
+    ctx.fillStyle = holo(0.75 * bright);
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+    const textRadius = R * 0.775;
+    const step = (fontPx * 1.08) / textRadius;
+    const repeats = Math.max(1, Math.floor(TAU / (step * RING_TEXT.length)));
+    const chars = RING_TEXT.repeat(repeats);
+    const spread = TAU / chars.length;
+    for (let i = 0; i < chars.length; i++) {
+      ctx.save();
+      ctx.rotate(i * spread);
+      ctx.translate(0, -textRadius);
+      ctx.fillText(chars[i], 0, 0);
+      ctx.restore();
+    }
+    ctx.restore();
+
+    // Dashed ring.
+    ctx.save();
+    ctx.rotate(spin.dashes);
+    ctx.setLineDash([R * 0.03, R * 0.022]);
+    arc(R * 0.705, 0, TAU, 3, holo(0.55 * bright));
+    ctx.setLineDash([]);
+    ctx.restore();
+
+    // Sweep while processing.
+    if (ui.state === "thinking" && ctx.createConicGradient) {
+      const g = ctx.createConicGradient(spin.sweep, 0, 0);
+      g.addColorStop(0, holo(0.35));
+      g.addColorStop(0.12, holo(0));
+      g.addColorStop(1, holo(0));
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.69, 0, TAU);
+      ctx.arc(0, 0, R * 0.5, TAU, 0, true);
+      ctx.fillStyle = g;
+      ctx.fill();
+    }
+
+    // Waveform ring.
+    for (let i = 0; i < BARS; i++) {
+      const a = (i / BARS) * TAU - Math.PI / 2;
+      const r1 = R * 0.53, r2 = r1 + R * 0.15 * Math.min(1, bars[i]) + 1;
+      ctx.beginPath();
+      ctx.moveTo(Math.cos(a) * r1, Math.sin(a) * r1);
+      ctx.lineTo(Math.cos(a) * r2, Math.sin(a) * r2);
+      ctx.lineWidth = Math.max(1.5, R * 0.012);
+      ctx.strokeStyle = holo((0.45 + bars[i]) * bright);
+      ctx.stroke();
+    }
+    arc(R * 0.515, 0, TAU, 1, holo(0.5 * bright));
+
+    // Reactor coils.
+    ctx.save();
+    ctx.rotate(spin.coils);
+    const glow = 0.45 + 0.35 * Math.min(1, envelope + (ui.state === "thinking" ? 0.4 : 0)) + 0.1 * Math.sin(t * 2);
+    for (let i = 0; i < 10; i++) {
+      const a0 = (i / 10) * TAU + 0.05, a1 = a0 + TAU / 10 - 0.1;
+      ctx.beginPath();
+      ctx.arc(0, 0, R * 0.46, a0, a1);
+      ctx.arc(0, 0, R * 0.36, a1, a0, true);
+      ctx.closePath();
+      ctx.fillStyle = holo(0.16 * glow * bright + 0.05);
+      ctx.fill();
+      ctx.lineWidth = 1;
+      ctx.strokeStyle = holo(0.8 * bright);
+      ctx.stroke();
+    }
+    ctx.restore();
+
+    // Core.
+    const coreR = R * (0.3 + 0.02 * envelope + 0.01 * Math.sin(t * 2.2));
+    const core = ctx.createRadialGradient(0, 0, 0, 0, 0, coreR);
+    core.addColorStop(0, `rgba(255, 255, 255, ${0.9 * bright})`);
+    core.addColorStop(0.25, holo(0.75 * bright));
+    core.addColorStop(0.7, holo(0.12 * bright));
+    core.addColorStop(1, holo(0));
+    ctx.beginPath();
+    ctx.arc(0, 0, coreR, 0, TAU);
+    ctx.fillStyle = core;
+    ctx.fill();
+    arc(R * 0.31, 0, TAU, 1.5, holo(0.7 * bright));
+    ctx.restore();
+    requestAnimationFrame(frame);
+  }
+  requestAnimationFrame(frame);
+
+  // ---------------------------------------------------------------- transcript
+  const log = $("log");
+  function nearBottom() { return log.scrollHeight - log.scrollTop - log.clientHeight < 80; }
+  function scrollDown(force) { if (force || nearBottom()) log.scrollTop = log.scrollHeight; }
+  function render(text) {
+    return escapeHtml(text)
+      .replace(/```[a-z]*\n?([\s\S]*?)```/g, (_, code) => `<code>${code}</code>`)
+      .replace(/`([^`]+)`/g, "<code>$1</code>")
+      .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
+      .replace(/\[([^\]]+)\]\((https?:\/\/[^)\s]+)\)/g, '<a href="$2" target="_blank" rel="noopener">$1</a>')
+      .replace(/\n/g, "<br>");
+  }
+  function entry(kind, who, text, { html = false } = {}) {
+    const stick = nearBottom();
+    const row = document.createElement("div");
+    row.className = `entry ${kind}`;
+    const label = document.createElement("div");
+    label.className = "who";
+    label.textContent = who;
+    const body = document.createElement("div");
+    body.className = "said";
+    if (html) body.innerHTML = text; else body.textContent = text;
+    row.append(label, body);
+    log.append(row);
+    while (log.children.length > 120) log.firstElementChild.remove();
+    scrollDown(stick);
+    return body;
+  }
+  let reply = null;       // { body, text } for the answer being streamed
+  let progressLine = null;
+  function jarvisSays(text) { entry("jarvis", "JARVIS", render(text), { html: true }); }
+  function streamText(delta) {
+    const stick = nearBottom();
+    if (!reply) {
+      const body = entry("jarvis", "JARVIS", "");
+      reply = { body, text: "" };
+    }
+    reply.text += delta;
+    reply.body.innerHTML = render(reply.text);
+    reply.body.classList.add("caret");
+    scrollDown(stick);
+  }
+  function endStream() {
+    reply?.body.classList.remove("caret");
+    reply = null;
+    progressLine = null;
+  }
+
+  // ---------------------------------------------------------------- side panels
+  function activity(kind, text) {
+    const li = document.createElement("li");
+    li.className = kind;
+    li.innerHTML = `<time>${hhmmss()}</time><span></span>`;
+    li.querySelector("span").textContent = text;
+    $("activity").prepend(li);
+    while ($("activity").children.length > 30) $("activity").lastElementChild.remove();
+    $("activity-empty").hidden = true;
+    $("activity-count").textContent = String(Number($("activity-count").textContent) + 1);
+  }
+  function facts(el, pairs) {
+    el.replaceChildren(...pairs.flatMap(([k, v]) => {
+      const dt = document.createElement("dt"); dt.textContent = k;
+      const dd = document.createElement("dd"); dd.textContent = v;
+      return [dt, dd];
+    }));
+  }
+  function showReminders(list) {
+    const ol = $("reminders");
+    ol.replaceChildren(...list.map((r) => {
+      const li = document.createElement("li");
+      const msg = document.createElement("span"); msg.textContent = r.message;
+      const due = document.createElement("time"); due.textContent = r.due;
+      li.append(msg, due);
+      return li;
+    }));
+    $("reminders-empty").hidden = list.length > 0;
+  }
+  function bootLine(name, value) {
+    const li = document.createElement("li");
+    li.innerHTML = "<span></span><b></b>";
+    li.firstChild.textContent = name;
+    li.lastChild.textContent = value;
+    $("bootlog").append(li);
+  }
+
+  // Gauges: three rings with a value in the middle.
+  const GAUGE_R = 30, GAUGE_C = 2 * Math.PI * GAUGE_R;
+  const gauges = {};
+  // warn(percent) says when a reading deserves amber: high load is bad, a high battery isn't.
+  function makeGauge(key, caption, warn = (p) => p >= 85) {
+    const fig = document.createElement("figure");
+    fig.className = "gauge";
+    fig.style.margin = "0";
+    fig.innerHTML = `<svg viewBox="-40 -40 80 80" role="img" aria-label="${caption}">
+        <circle class="ticks" r="36"/><circle class="track" r="${GAUGE_R}"/>
+        <circle class="fill" r="${GAUGE_R}" transform="rotate(-90)" stroke-dasharray="${GAUGE_C}" stroke-dashoffset="${GAUGE_C}"/>
+        <text>—</text></svg><figcaption>${caption}</figcaption>`;
+    $("gauges").append(fig);
+    fig.warn = warn;
+    gauges[key] = fig;
+  }
+  function setGauge(key, percent, label) {
+    const fig = gauges[key];
+    if (!fig) return;
+    const p = percent === null || Number.isNaN(percent) ? 0 : Math.max(0, Math.min(100, percent));
+    fig.querySelector(".fill").style.strokeDashoffset = String(GAUGE_C * (1 - p / 100));
+    fig.querySelector("text").textContent = label ?? (percent === null ? "—" : `${Math.round(p)}%`);
+    fig.classList.toggle("hot", percent !== null && fig.warn(p));
+  }
+
+  function tickClock() {
+    const now = new Date();
+    const [h, m, s] = hhmmss(now).split(":");
+    $("clock").firstChild.textContent = `${h}:${m}`;
+    $("clock-sec").textContent = `:${s}`;
+    $("clock-chip").textContent = hhmmss(now);
+    $("date").textContent = now.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
+    $("zone").textContent = Intl.DateTimeFormat().resolvedOptions().timeZone.replace(/_/g, " ");
+  }
+  tickClock();
+  setInterval(tickClock, 1000);
+
+  const formatUptime = (sec) => {
+    const d = Math.floor(sec / 86400), h = Math.floor((sec % 86400) / 3600), m = Math.floor((sec % 3600) / 60);
+    return (d ? `${d}d ` : "") + `${h}h ${m}m`;
+  };
+
+  // ---------------------------------------------------------------- speech
+  function forSpeech(text) {
+    return text
+      .replace(/```[\s\S]*?(?:```|$)/g, " I've put the details on screen. ")
+      .replace(/`([^`]*)`/g, "$1")
+      .replace(/!?\[([^\]]*)\]\([^)]*\)/g, "$1")
+      .replace(/https?:\/\/\S+/g, "the link on screen")
+      .replace(/^\s{0,3}#{1,6}\s+/gm, "")
+      .replace(/^\s*(?:[-*+]|\d+\.)\s+/gm, "")
+      .replace(/\*\*(.+?)\*\*/g, "$1")
+      .replace(/([^\s.!?:;,])[ \t]*\n+/g, "$1. ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+  const speaker = { enabled: store.get("voice", true), active: false, voice: null };
+  function pickVoice() {
+    const voices = window.speechSynthesis?.getVoices() ?? [];
+    const prefer = [/Daniel/i, /Google UK English Male/i, /Arthur/i, /(George|Ryan|Thomas|Oliver)/i, /UK English Male/i];
+    const british = voices.filter((v) => /en[-_]GB/i.test(v.lang));
+    for (const pattern of prefer) {
+      const found = british.find((v) => pattern.test(v.name)) || voices.find((v) => pattern.test(v.name) && /^en/i.test(v.lang));
+      if (found) return found;
+    }
+    return british[0] || voices.find((v) => /^en/i.test(v.lang)) || null;
+  }
+  if (window.speechSynthesis) {
+    speaker.voice = pickVoice();
+    speechSynthesis.addEventListener?.("voiceschanged", () => { speaker.voice = pickVoice(); updateLinkFacts(); });
+  }
+  let speechRun = 0;
+  function speak(text, onDone = () => {}) {
+    stopSpeaking();
+    const spoken = forSpeech(text);
+    if (!speaker.enabled || !window.speechSynthesis || !spoken) return onDone();
+    const run = ++speechRun;
+    // Speak a sentence or two at a time: some browsers stop long utterances part-way.
+    const chunks = spoken.match(/[^.!?]+[.!?]+["')\]]*\s*|[^.!?]+$/g)?.reduce((acc, s) => {
+      if (acc.length && acc[acc.length - 1].length + s.length < 180) acc[acc.length - 1] += s; else acc.push(s);
+      return acc;
+    }, []) ?? [spoken];
+    speaker.active = true;
+    setState("speaking", "");
+    const finish = () => {
+      if (run !== speechRun) return;
+      speaker.active = false;
+      restingState();
+      onDone();
+    };
+    chunks.forEach((chunk, i) => {
+      const u = new SpeechSynthesisUtterance(chunk.trim());
+      if (speaker.voice) { u.voice = speaker.voice; u.lang = speaker.voice.lang; } else u.lang = "en-GB";
+      u.rate = 1.02;
+      u.pitch = 0.92;
+      u.onstart = () => { envelope = Math.max(envelope, 0.7); };
+      u.onboundary = () => { envelope = 1; };
+      u.onerror = (e) => {
+        if (e.error === "not-allowed") hint("Click anywhere on the display once so I can speak.");
+        if (e.error !== "interrupted" && e.error !== "canceled") finish();
+      };
+      if (i === chunks.length - 1) u.onend = finish;
+      speechSynthesis.speak(u);
+    });
+    // Browsers that speak without word boundaries still get a pulse.
+    const pulse = setInterval(() => {
+      if (run !== speechRun || !speaker.active) return clearInterval(pulse);
+      envelope = Math.max(envelope, 0.45 + Math.random() * 0.4);
+    }, 180);
+  }
+  function stopSpeaking() {
+    speechRun++;
+    if (window.speechSynthesis) speechSynthesis.cancel();
+    if (speaker.active) {
+      speaker.active = false;
+      restingState();
+    }
+  }
+  function syncVoiceButton() {
+    $("voice").setAttribute("aria-pressed", String(speaker.enabled));
+    $("voice").querySelector(".waves").style.opacity = speaker.enabled ? "1" : "0.2";
+  }
+  $("voice").addEventListener("click", () => {
+    speaker.enabled = !speaker.enabled;
+    store.set("voice", speaker.enabled);
+    if (!speaker.enabled) stopSpeaking();
+    syncVoiceButton();
+    updateLinkFacts();
+  });
+  syncVoiceButton();
+
+  let hintTimer;
+  function hint(text, ms = 6000) {
+    $("hint").textContent = text;
+    clearTimeout(hintTimer);
+    if (text && ms) hintTimer = setTimeout(() => ($("hint").textContent = ""), ms);
+  }
+
+  // ---------------------------------------------------------------- events (shared by both links)
+  let link = null;
+  function onEvent(e) {
+    switch (e.type) {
+      case "hello":
+        ui.honorific = e.honorific || ui.honorific;
+        ui.listening = !!e.listening;
+        $("model-chip").textContent = e.effort ? `${e.model} · ${e.effort}` : e.model;
+        syncMic();
+        setBusy(!!e.busy);
+        if (e.busy) setState("thinking", "");
+        updateLinkFacts(e);
+        break;
+      case "user":
+        endStream();
+        entry("you", "You", e.spoken ? `${e.text}  🎙` : e.text);
+        break;
+      case "turnStarted":
+        setBusy(true);
+        setState("thinking", "");
+        break;
+      case "waiting":
+        setState("thinking", "");
+        break;
+      case "text":
+        setState("responding", "");
+        streamText(e.delta);
+        break;
+      case "progress":
+        if (!progressLine) progressLine = entry("progress", "", "");
+        progressLine.textContent += e.delta;
+        $("substate").textContent = progressLine.textContent.slice(0, 60);
+        scrollDown();
+        break;
+      case "blockEnd":
+        progressLine = null;
+        break;
+      case "tool":
+        endStream();
+        entry("tool", "⟡", e.label);
+        activity("tool", e.label);
+        flash = 1;
+        $("substate").textContent = e.label.slice(0, 48);
+        break;
+      case "notice":
+      case "note":
+        entry("note", "", e.message ?? e.text);
+        break;
+      case "say":
+        endStream();
+        jarvisSays(e.text);
+        break;
+      case "error":
+        endStream();
+        entry("error", "Alert", e.text);
+        activity("alert", e.text);
+        break;
+      case "reminder":
+        entry("alert", "Reminder", e.text);
+        activity("alert", `Reminder: ${e.text}`);
+        refreshStats();
+        break;
+      case "acknowledge":
+        jarvisSays(e.text);
+        setState("listening", "Go ahead");
+        break;
+      case "voiceStatus":
+        $("substate").textContent = e.text ?? "";
+        if (e.text) hint(e.text, 0); else hint("");
+        break;
+      case "voiceInput":
+        ui.listening = e.on;
+        syncMic();
+        if (e.on) entry("note", "", `Listening for “Hey JARVIS” on ${e.microphone}. Speech is recognized on your computer.`);
+        restingState();
+        updateLinkFacts();
+        break;
+      case "turnEnded":
+        endStream();
+        setBusy(false);
+        break;
+      case "speak":
+        speak(e.text, () => link?.speechEnded?.(e.id));
+        break;
+      case "stopSpeaking":
+        stopSpeaking();
+        break;
+      case "approval":
+        showApproval(e.id, e.question);
+        break;
+      case "approvalClosed":
+        closeApproval(e.id, e.answer);
+        break;
+    }
+  }
+
+  const approvals = new Map();
+  function showApproval(id, question) {
+    endStream();
+    const card = document.createElement("div");
+    card.className = "approval";
+    const p = document.createElement("p");
+    p.textContent = question;
+    const buttons = document.createElement("div");
+    buttons.className = "buttons";
+    for (const [answer, label, cls] of [["yes", "Proceed", "amber"], ["no", "Decline", ""], ["always", "Allow all this session", ""]]) {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.textContent = label;
+      if (cls) b.className = cls;
+      b.addEventListener("click", () => {
+        buttons.querySelectorAll("button").forEach((x) => (x.disabled = true));
+        link.approve(id, answer).catch((err) => entry("error", "Alert", err.message));
+      });
+      buttons.append(b);
+    }
+    card.append(p, buttons);
+    const body = entry("approval-row", "Approve?", "");
+    body.replaceWith(card);
+    approvals.set(id, card);
+    setState("thinking", "Waiting for your approval");
+    card.querySelector("button")?.focus({ preventScroll: true });
+  }
+  function closeApproval(id, answer) {
+    const card = approvals.get(id);
+    if (!card) return;
+    approvals.delete(id);
+    const words = { yes: "Approved.", no: "Declined.", always: "Approved for the rest of this session." };
+    card.replaceChildren(Object.assign(document.createElement("p"), { textContent: words[answer] ?? "Question withdrawn." }));
+  }
+
+  // ---------------------------------------------------------------- command bar
+  $("command").addEventListener("submit", async (ev) => {
+    ev.preventDefault();
+    const text = $("prompt").value.trim();
+    if (!text || !link) return;
+    if (ui.busy) return hint("I'm still on the last request. Press Stop to cut me off.");
+    $("prompt").value = "";
+    stopSpeaking();
+    try {
+      await link.send(text);
+    } catch (err) {
+      entry("error", "Alert", err.message);
+    }
+  });
+  $("stop").addEventListener("click", () => { stopSpeaking(); link?.stop(); });
+  $("reactor-wrap").addEventListener("click", () => $("prompt").focus());
+  function syncMic() {
+    $("mic").setAttribute("aria-pressed", String(ui.listening));
+    $("prompt").placeholder = ui.listening ? "Type, or say “Hey JARVIS”" : "Give JARVIS an instruction";
+  }
+  $("mic").addEventListener("click", () => link?.toggleListening?.());
+
+  // ---------------------------------------------------------------- link: local server
+  function localLink(config) {
+    const headers = { "content-type": "application/json", "x-jarvis-token": config.token };
+    const post = async (path, body = {}) => {
+      const res = await fetch(path, { method: "POST", headers, body: JSON.stringify(body) });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || `The server said ${res.status}.`);
+    };
+    const events = new EventSource(`/api/events?token=${encodeURIComponent(config.token)}`);
+    events.onmessage = (m) => onEvent(JSON.parse(m.data));
+    events.onopen = () => { $("link-chip").textContent = "Link · local"; $("link-chip").className = "chip"; };
+    events.onerror = () => { $("link-chip").textContent = "Link · reconnecting"; $("link-chip").className = "chip warn"; };
+    $("mic").hidden = false;
+    return {
+      kind: "local",
+      send: (text) => post("/api/message", { text }),
+      stop: () => post("/api/stop"),
+      approve: (id, answer) => post("/api/approval", { id, answer }),
+      speechEnded: (id) => post("/api/speech", { id }).catch(() => {}),
+      toggleListening: () => post("/api/message", { text: ui.listening ? "/listen off" : "/listen on" }).catch((err) => hint(err.message)),
+      async stats() {
+        const res = await fetch("/api/stats", { headers });
+        return res.ok ? res.json() : null;
+      },
+    };
+  }
+
+  // ---------------------------------------------------------------- link: hosted (Claude viewer)
+  function hostedLink() {
+    const MEMORY_KEY = "memories";
+    const memories = () => store.get(MEMORY_KEY, []);
+    const reminders = [];
+    let turns = [];
+    let controller = null;
+    let samplePromise = window.claude?.use ? window.claude.use("sample") : Promise.resolve(null);
+    let toolsAllowed = null;
+
+    function briefing() {
+      const saved = memories();
+      return [
+        "You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), the AI butler from the Iron Man films, running as a holographic display in the user's web browser.",
+        `Be calm, precise and courteous, with a dry British wit. Address the user as "${ui.honorific}".`,
+        "Your replies are read aloud, so write natural spoken sentences: one to three for a simple request, more only when asked for detail. No tables, headings or heavy markdown.",
+        "Use your tools rather than guessing: get_datetime for the date and time, device_status for this device, set_reminder for reminders (they fire only while this page stays open), remember and forget for facts worth keeping about the user (never secrets).",
+        "This browser version can't search the web, open pages or run commands. If asked, say so briefly; the desktop version (npm run web in the jarvis folder) can.",
+        `Facts you've saved about the user in this browser: ${saved.length ? saved.map((m) => `[${m.id}] ${m.fact}`).join("; ") : "none yet"}.`,
+        "The conversation follows.",
+      ].join("\n");
+    }
+
+    const tools = [
+      {
+        name: "get_datetime",
+        description: "Returns the current local date, time and time zone of the user's device.",
+        execute() {
+          const now = new Date();
+          return { local: now.toLocaleString("en-GB", { dateStyle: "full", timeStyle: "long" }), time_zone: Intl.DateTimeFormat().resolvedOptions().timeZone };
+        },
+      },
+      {
+        name: "device_status",
+        description: "Returns diagnostics for the user's device as the browser reports them: platform, CPU cores, memory, network, screen, battery and display frame rate.",
+        async execute() {
+          onEvent({ type: "tool", label: "Running diagnostics" });
+          return deviceStatus();
+        },
+      },
+      {
+        name: "set_reminder",
+        description: "Sets a reminder that interrupts the user with a spoken alert after a delay, while this page stays open. Returns the time it will fire.",
+        inputSchema: { type: "object", properties: { message: { type: "string" }, minutes_from_now: { type: "number" } }, required: ["message", "minutes_from_now"] },
+        execute(input) {
+          const message = String(input.message ?? "").slice(0, 200);
+          const minutes = Number(input.minutes_from_now);
+          if (!message || !(minutes > 0 && minutes <= 1440)) throw new Error("Give a message and a delay between 0 and 1440 minutes.");
+          const due = new Date(Date.now() + minutes * 60000);
+          const item = { message, due: hhmmss(due) };
+          reminders.push(item);
+          showReminders(reminders);
+          onEvent({ type: "tool", label: `Reminder at ${item.due}: ${message}` });
+          setTimeout(() => {
+            reminders.splice(reminders.indexOf(item), 1);
+            showReminders(reminders);
+            onEvent({ type: "reminder", text: message });
+            speak(`Pardon the interruption, ${ui.honorific}. You asked me to remind you: ${message}`);
+          }, minutes * 60000);
+          return `Reminder set for ${item.due}.`;
+        },
+      },
+      {
+        name: "remember",
+        description: "Saves a short fact about the user in this browser so it's available next time. Returns the new memory's id.",
+        inputSchema: { type: "object", properties: { fact: { type: "string" } }, required: ["fact"] },
+        execute(input) {
+          const fact = String(input.fact ?? "").trim().slice(0, 300);
+          if (!fact) throw new Error("Nothing to remember.");
+          const list = memories();
+          const id = `m${list.reduce((max, m) => Math.max(max, Number(m.id.slice(1)) || 0), 0) + 1}`;
+          list.push({ id, fact });
+          store.set(MEMORY_KEY, list);
+          onEvent({ type: "tool", label: `Committing to memory: ${fact}` });
+          updateLinkFacts();
+          return `Saved as ${id}.`;
+        },
+      },
+      {
+        name: "forget",
+        description: "Deletes a saved fact about the user by its id, such as m2.",
+        inputSchema: { type: "object", properties: { memory_id: { type: "string" } }, required: ["memory_id"] },
+        execute(input) {
+          const list = memories();
+          const index = list.findIndex((m) => m.id === String(input.memory_id));
+          if (index < 0) throw new Error(`No memory with id ${input.memory_id}.`);
+          const [removed] = list.splice(index, 1);
+          store.set(MEMORY_KEY, list);
+          onEvent({ type: "tool", label: `Erasing memory ${removed.id}` });
+          updateLinkFacts();
+          return `Forgot ${removed.id}.`;
+        },
+      },
+    ];
+
+    const COPY = {
+      not_granted: "I need your permission to reach Claude from this page. Send another message and choose Allow.",
+      sampling_disabled: "Claude isn't available for this account, so I can't answer here.",
+      rate_limited: "We're being rate-limited. Give it a moment, then try again.",
+      session_expired: "Your Claude session has expired. Sign in again, then try once more.",
+      refused: "I'm afraid I can't help with that one.",
+      empty_completion: "I came up blank on that one. Could you rephrase it?",
+      prompt_too_large: "This conversation has grown too long for me. Reload the page to start afresh.",
+    };
+
+    return {
+      kind: "hosted",
+      async send(text) {
+        const sample = await samplePromise;
+        onEvent({ type: "user", text, spoken: false });
+        if (!sample) {
+          onEvent({ type: "say", text: `My link to Claude isn't available in this view, ${ui.honorific}. Open this page in Claude, or run me on your computer with npm run web.` });
+          return;
+        }
+        if (toolsAllowed === null) toolsAllowed = !!(await sample.limits().catch(() => null))?.tools;
+        turns.push({ role: "user", content: text });
+        turns = turns.slice(-24);
+        while (turns.length > 1 && turns[0].role !== "user") turns.shift();
+        controller = new AbortController();
+        onEvent({ type: "turnStarted", input: text });
+        let answer = "";
+        try {
+          const result = await sample([{ role: "user", content: briefing() }, ...turns], {
+            modelTier: store.get("tier", "quick"),
+            cache: false,
+            signal: controller.signal,
+            tools: toolsAllowed ? tools : undefined,
+            onText: ({ text: whole, delta }) => { answer = whole; onEvent({ type: "text", delta }); },
+          });
+          answer = result.text;
+          turns.push({ role: "assistant", content: answer });
+          onEvent({ type: "turnEnded", outcome: "answered" });
+          if (result.truncated) onEvent({ type: "note", text: "(my answer was cut short)" });
+          speak(answer);
+        } catch (err) {
+          const code = err?.code ?? "upstream_error";
+          onEvent({ type: "turnEnded", outcome: code === "cancelled" ? "interrupted" : "failed" });
+          if (err?.text) turns.push({ role: "assistant", content: err.text });
+          else turns.pop();
+          if (code === "cancelled") onEvent({ type: "note", text: "(interrupted)" });
+          else onEvent({ type: "error", text: COPY[code] ?? "Something went wrong reaching Claude. Try again in a moment." });
+          if (code === "refused" && reply) reply.body.textContent = "";
+        } finally {
+          controller = null;
+        }
+      },
+      stop() { controller?.abort(); return Promise.resolve(); },
+      approve() { return Promise.resolve(); },
+      reminders,
+      memories,
+      samplePromise,
+    };
+  }
+
+  // ---------------------------------------------------------------- live readouts
+  let fps = 60, frames = 0, fpsSince = performance.now();
+  (function countFrames(now) {
+    frames++;
+    if (now - fpsSince >= 1000) { fps = Math.round((frames * 1000) / (now - fpsSince)); frames = 0; fpsSince = now; }
+    requestAnimationFrame(countFrames);
+  })(performance.now());
+
+  async function deviceStatus() {
+    const battery = await navigator.getBattery?.().catch(() => null);
+    const connection = navigator.connection;
+    return {
+      platform: navigator.userAgentData?.platform || navigator.platform || "unknown",
+      cpu_cores: navigator.hardwareConcurrency ?? "unknown",
+      memory_gb: navigator.deviceMemory ?? "not reported",
+      online: navigator.onLine,
+      network: connection?.effectiveType ?? "unknown",
+      screen: `${screen.width}×${screen.height} at ${window.devicePixelRatio}x`,
+      battery: battery ? `${Math.round(battery.level * 100)}%${battery.charging ? ", charging" : ""}` : "not reported",
+      display_fps: fps,
+    };
+  }
+
+  let statsBusy = false;
+  async function refreshStats() {
+    if (!link || statsBusy) return;
+    statsBusy = true;
+    try {
+      if (link.kind === "local") {
+        const s = await link.stats();
+        if (!s) return;
+        setGauge("cpu", s.cpuPercent);
+        setGauge("mem", s.memoryPercent);
+        setGauge("disk", s.diskPercent);
+        facts($("system-facts"), [["Host", s.host], ["System", s.os], ["Uptime", formatUptime(s.uptimeSeconds)], ["Cores", String(s.cores)], ["Memory", s.memoryTotal], ["Disk free", s.diskFree ?? "—"]]);
+        showReminders(s.reminders ?? []);
+      } else {
+        const d = await deviceStatus();
+        const battery = parseInt(d.battery, 10);
+        setGauge("fps", Math.min(100, (fps / 60) * 100), String(fps));
+        setGauge("battery", Number.isNaN(battery) ? null : battery);
+        setGauge("cores", Math.min(100, (Number(d.cpu_cores) / 16) * 100) || null, String(d.cpu_cores));
+        facts($("system-facts"), [["Platform", d.platform], ["Memory", typeof d.memory_gb === "number" ? `${d.memory_gb} GB` : "—"], ["Network", `${d.online ? "online" : "offline"} · ${d.network}`], ["Screen", d.screen]]);
+      }
+    } catch {
+      // Readouts are decorative; try again next tick.
+    } finally {
+      statsBusy = false;
+    }
+  }
+
+  function updateLinkFacts(hello) {
+    if (!link) return;
+    const voiceName = speaker.enabled ? (speaker.voice?.name ?? "browser default") : "muted";
+    if (link.kind === "local") {
+      if (hello) ui.memoryCount = hello.memories;
+      facts($("link-facts"), [["Brain", "Claude, via this computer"], ["Voice in", ui.listening ? "“Hey JARVIS”, on-device" : "keyboard"], ["Voice out", voiceName], ["Memory", `${ui.memoryCount ?? 0} record(s)`], ["Address", location.host]]);
+    } else {
+      facts($("link-facts"), [["Brain", "Claude, via this page"], ["Voice in", "desktop version only"], ["Voice out", voiceName], ["Memory", `${link.memories().length} record(s), this browser`]]);
+    }
+  }
+
+  // ---------------------------------------------------------------- start-up
+  async function start() {
+    const local = window.JARVIS_LOCAL;
+    link = local ? localLink(local) : hostedLink();
+    if (link.kind === "local") {
+      $("gauges-title").textContent = "Diagnostics";
+      $("gauges-source").textContent = "live";
+      makeGauge("cpu", "CPU");
+      makeGauge("mem", "Memory");
+      makeGauge("disk", "Disk");
+    } else {
+      $("gauges-title").textContent = "Device";
+      $("gauges-source").textContent = "browser";
+      makeGauge("fps", "FPS", (p) => p < 50);
+      makeGauge("battery", "Battery", (p) => p <= 15);
+      makeGauge("cores", "Cores", () => false);
+      $("model-chip").textContent = "Claude";
+    }
+    updateLinkFacts();
+    refreshStats();
+    setInterval(refreshStats, link.kind === "local" ? 3000 : 1500);
+
+    const checks = [
+      ["Arc reactor", "online"],
+      ["Neural link", link.kind === "local" ? "local server" : "Claude"],
+      ["Speech synthesis", window.speechSynthesis ? "ready" : "unavailable"],
+      ["Voice input", link.kind === "local" ? "on request" : "desktop only"],
+      ["Holographic display", reducedMotion ? "reduced motion" : "nominal"],
+    ];
+    checks.forEach(([name, value], i) => setTimeout(() => bootLine(name, value), reducedMotion ? 0 : 180 + i * 160));
+
+    const hour = new Date().getHours();
+    const part = hour < 5 ? "Burning the midnight oil" : hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+    setTimeout(() => {
+      jarvisSays(hour < 5 ? `${part}, ${ui.honorific}? All systems are online.` : `${part}, ${ui.honorific}. All systems are online. How may I help?`);
+      if (link.kind === "hosted") {
+        link.samplePromise.then((sample) => {
+          $("link-chip").textContent = sample ? "Link · Claude" : "Link · offline";
+          $("link-chip").className = sample ? "chip" : "chip bad";
+          if (!sample) hint("My link to Claude isn't available here. Open this page in Claude to talk to me.", 0);
+        });
+      }
+    }, reducedMotion ? 0 : 1100);
+    $("prompt").focus({ preventScroll: true });
+  }
+  start();
+})();
+</script>
