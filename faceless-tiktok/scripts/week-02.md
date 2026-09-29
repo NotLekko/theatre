@@ -5,7 +5,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 ---
 
 ## 008 · I talk for 2 minutes, AI plans my whole week
-**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "2-minute voice memo → my whole week" · **Keywords:** weekly planning, productivity hacks, chatgpt voice, to do list
+**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "2-minute voice memo. Whole week planned." · **Keywords:** weekly planning, productivity hacks, chatgpt voice, to do list
 
 ### Voiceover
 > Every Monday I talk to my phone for two minutes, and AI turns it into my entire week.
@@ -29,7 +29,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 8. **64–70s:** SHORTCUT #008 tag + "Tomorrow: the airline refund rule".
 
 ### Post
-**Caption:** Weekly planning with AI in 2 minutes 🗓️ Brain dump by voice → paste this prompt → priorities, projects and days sorted. #productivityhacks #weeklyplanning #chatgpttips #aitools #aishortcut
+**Caption:** Weekly planning with AI in 2 minutes 🗓️ Brain dump by voice → paste this prompt → priorities, projects and days sorted. #productivityhacks #weeklyplanning #chatgpttips #aitools #tooltheory
 **Pinned comment:** Prompt: "Turn my brain dump into a plan for the week. Group tasks by project. Mark anything with a deadline. Put the three most important tasks first. Then suggest which day to do each one."
 
 ---
@@ -63,7 +63,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 9. **64–72s:** SHORTCUT #009 tag + "Tomorrow: make AI sound human".
 
 ### Post
-**Caption:** Flight cancelled? In the US you're owed a refund, not just a voucher ✈️ AI writes the request in 30 seconds. Prompt 👇 Not legal advice; check transportation.gov for the current rules. #travelhacks #flightcancelled #savemoney #chatgpttips #aishortcut
+**Caption:** Flight cancelled? In the US you're owed a refund, not just a voucher ✈️ AI writes the request in 30 seconds. Prompt 👇 Not legal advice; check transportation.gov for the current rules. #travelhacks #flightcancelled #savemoney #chatgpttips #tooltheory
 **Pinned comment:** Prompt: "My flight [NUMBER] on [DATE] was cancelled and I did not accept the rebooking. Write a short, firm refund request to [AIRLINE] citing the Department of Transportation refund rules. Ask for a refund to my original payment method, not a voucher."
 
 ---
@@ -93,13 +93,13 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 8. **64–70s:** SHORTCUT #010 tag + "Tomorrow: budget spreadsheet in 60s".
 
 ### Post
-**Caption:** How to make ChatGPT write like YOU (not like AI) ✍️ Give it a writing sample → get your style description → ban the AI words. #chatgpttips #aiwriting #chatgpt #writingtips #aishortcut
+**Caption:** How to make ChatGPT write like YOU (not like AI) ✍️ Give it a writing sample → get your style description → ban the AI words. #chatgpttips #aiwriting #chatgpt #writingtips #tooltheory
 **Pinned comment:** My ban list: delve, crucial, landscape, elevate, unlock, seamless, "in today's fast-paced world", "it's important to note". What would you add? 👇
 
 ---
 
 ## 011 · A full budget spreadsheet, zero formulas typed
-**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "Budget spreadsheet. 0 formulas typed." · **Keywords:** budget spreadsheet, google sheets budget, how to budget, budgeting tips
+**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "Budget sheet. Zero formulas typed." · **Keywords:** budget spreadsheet, google sheets budget, how to budget, budgeting tips
 
 ### Voiceover
 > This is a full budget spreadsheet, with totals, categories and a what's-left column, and I didn't type a single formula.
@@ -124,7 +124,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 9. **64–70s:** SHORTCUT #011 tag + "Tomorrow: lease red flags".
 
 ### Post
-**Caption:** Build a budget spreadsheet with AI in 60 seconds 📊 One prompt → paste into Google Sheets → add formulas. No spreadsheet skills needed. #budgeting #budgetingtips #googlesheets #moneyhacks #aishortcut
+**Caption:** Build a budget spreadsheet with AI in 60 seconds 📊 One prompt → paste into Google Sheets → add formulas. No spreadsheet skills needed. #budgeting #budgetingtips #googlesheets #moneyhacks #tooltheory
 **Pinned comment:** Full prompt: "Create a monthly budget table I can paste into Google Sheets. Columns: category, planned, actual, difference. Rows for rent, groceries, transport, subscriptions, eating out, savings, and other. Give me the formulas for the difference column and a totals row, and tell me exactly which cell each one goes in."
 
 ---
@@ -155,7 +155,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 9. **64–70s:** SHORTCUT #012 tag + "Tomorrow: stop overpaying online".
 
 ### Post
-**Caption:** Check your lease for red flags with AI before you sign 🏠 Remove personal info → upload → this prompt. Not legal advice. #rentingtips #firstapartment #chatgpttips #moneyhacks #aishortcut
+**Caption:** Check your lease for red flags with AI before you sign 🏠 Remove personal info → upload → this prompt. Not legal advice. #rentingtips #firstapartment #chatgpttips #moneyhacks #tooltheory
 **Pinned comment:** Prompt: "Review this lease as if you're protecting the tenant. List every fee, penalty and automatic renewal. Flag anything unusual or one-sided. Quote the exact clause for each one." Then: "Which of these are commonly negotiable, and how should I ask?"
 
 ---
@@ -184,7 +184,7 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 8. **64–70s:** SHORTCUT #013 tag + "Tomorrow: make AI quiz you".
 
 ### Post
-**Caption:** How to check if a sale is actually a deal 🏷️ Google Shopping price insights + camelcamelcamel for Amazon price history, plus price alerts. #shoppinghacks #savemoney #amazonfinds #moneyhacks #aishortcut
+**Caption:** How to check if a sale is actually a deal 🏷️ Google Shopping price insights + camelcamelcamel for Amazon price history, plus price alerts. #shoppinghacks #savemoney #amazonfinds #moneyhacks #tooltheory
 **Pinned comment:** Rule of thumb: set your alert just below the lowest price in the last 3 months. What are you waiting to go on sale? 👇
 
 ---
@@ -215,5 +215,5 @@ Same rules as Week 1: `[brackets]` = replace with what your demo actually shows;
 8. **64–70s:** SHORTCUT #014 tag + "Shortcut #015 tomorrow".
 
 ### Post
-**Caption:** Study smarter: make AI quiz you (active recall) 🧠 Paste notes → quiz prompt → flashcards from your mistakes. #studytips #studyhacks #activerecall #chatgpttips #aishortcut
+**Caption:** Study smarter: make AI quiz you (active recall) 🧠 Paste notes → quiz prompt → flashcards from your mistakes. #studytips #studyhacks #activerecall #chatgpttips #tooltheory
 **Pinned comment:** Prompt: "Quiz me on this material. Ask one question at a time and wait for my answer. If I'm wrong, explain why in two sentences, then ask a follow-up on the same idea. Get harder as I get things right. Keep score."

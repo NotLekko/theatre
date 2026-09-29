@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>AI Shortcut Cover Maker</title>
+<title>Tool Theory Cover Maker</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
@@ -26,7 +26,7 @@
 <body>
 <main>
   <form id="f" onsubmit="return false">
-    <h1 style="margin:0;font-size:20px">AI Shortcut: cover maker</h1>
+    <h1 style="margin:0;font-size:20px">Tool Theory: cover maker</h1>
     <label>Mode
       <select name="mode">
         <option value="cover">Video cover (1080×1920)</option>
@@ -42,7 +42,7 @@
         <option>PROMPT FIX</option><option>HIDDEN FEATURES</option>
       </select>
     </label>
-    <label>Handle <input name="handle" value="@theaishortcut"></label>
+    <label>Handle <input name="handle" value="@tooltheory"></label>
     <button id="dl" type="button">Download PNG</button>
   </form>
   <canvas id="c"></canvas>
@@ -68,6 +68,32 @@ function wrap(text, maxW) {
   return lines;
 }
 
+// Rounded pointy-top hexagon ("hex nut" = tools) as SVG path data.
+function hexPath(cx, cy, r, cr) {
+  const pts = [...Array(6)].map((_, i) => {
+    const a = Math.PI / 180 * (60 * i - 90);
+    return [cx + r * Math.cos(a), cy + r * Math.sin(a)];
+  });
+  const toward = (a, b, t) => [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t];
+  return pts.map((p, i) => {
+    const a = toward(p, pts[(i + 5) % 6], cr / r), b = toward(p, pts[(i + 1) % 6], cr / r);
+    return `${i ? "L" : "M"}${a} Q${p} ${b}`;
+  }).join(" ") + "Z";
+}
+
+// Four-point sparkle ("AI") as SVG path data.
+function sparkPath(cx, cy, s, w) {
+  const c = s * w;
+  return `M${cx},${cy - s} Q${cx + c},${cy - c} ${cx + s},${cy} Q${cx + c},${cy + c} ${cx},${cy + s} ` +
+         `Q${cx - c},${cy + c} ${cx - s},${cy} Q${cx - c},${cy - c} ${cx},${cy - s}Z`;
+}
+
+// The logo: lime hex nut with an ink sparkle cut out, centred on (cx, cy) with radius r.
+function drawLogo(cx, cy, r) {
+  ctx.fillStyle = LIME; ctx.fill(new Path2D(hexPath(cx, cy, r, r * 0.194)));
+  ctx.fillStyle = INK; ctx.fill(new Path2D(sparkPath(cx, cy, r * 0.556, 0.2)));
+}
+
 function grid(w, h) {
   ctx.strokeStyle = "rgba(198,255,61,0.05)"; ctx.lineWidth = 2;
   for (let x = 0; x <= w; x += 90) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
@@ -86,10 +112,13 @@ function drawCover({ n, hook, pillar, handle }) {
   ctx.fillStyle = LIME; roundRect(80, 300, tw + 64, 84, 42);
   ctx.fillStyle = INK; ctx.textBaseline = "middle"; ctx.fillText(tag, 112, 344);
 
+  // Shrink until the hook fits in 5 lines AND no single word overflows the box.
+  const maxW = 860 - 96;
   let size = 118, lines;
-  do { ctx.font = `900 ${size}px ${FONT}`; lines = wrap(hook.toUpperCase(), 860 - 96); size -= 6; }
-  while (lines.length > 5 && size > 60);
-  size += 6;
+  do {
+    ctx.font = `900 ${size}px ${FONT}`; lines = wrap(hook.toUpperCase(), maxW); size -= 4;
+  } while ((lines.length > 5 || lines.some(l => ctx.measureText(l).width > maxW)) && size > 50);
+  size += 4;
   const lh = size * 1.12, boxH = lines.length * lh + 110, boxY = 470;
   ctx.fillStyle = LIME; roundRect(80, boxY, 860, boxH, 36);
   ctx.fillStyle = INK; ctx.textBaseline = "alphabetic";
@@ -97,20 +126,16 @@ function drawCover({ n, hook, pillar, handle }) {
 
   ctx.font = `700 44px ${FONT}`; ctx.fillStyle = "#FFFFFF";
   ctx.fillText(pillar, 84, boxY + boxH + 90);
+  drawLogo(112, 1456, 30);
   ctx.fillStyle = MUTED; ctx.font = `700 40px ${FONT}`;
-  ctx.fillText(handle, 84, 1470);
+  ctx.fillText(handle, 162, 1470);
 }
 
-// Profile picture: a lime "keycap" (a keyboard shortcut) reading AI».
+// Profile picture: the logo on ink, sized to sit well inside TikTok's circle crop.
 function drawAvatar() {
   c.width = 1080; c.height = 1080;
-  ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080); grid(1080, 1080);
-  ctx.fillStyle = "#6E8F1F"; roundRect(250, 290, 580, 560, 90);   // keycap side
-  ctx.fillStyle = LIME; roundRect(250, 230, 580, 560, 90);        // keycap top
-  ctx.fillStyle = INK; ctx.font = `900 300px ${FONT}`;
-  ctx.textAlign = "center"; ctx.textBaseline = "middle";
-  ctx.fillText("AI»", 540, 522);
-  ctx.textAlign = "left";
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080);
+  drawLogo(540, 540, 360);
 }
 
 function drawOverlay() {

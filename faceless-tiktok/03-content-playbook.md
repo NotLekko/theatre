@@ -88,7 +88,7 @@ Step 1 … Step 2 … Step 3 …  (short recap people can save)
 **Hashtags: 3–5, a mix of sizes**
 - Broad (pick 1): `#aitools` `#ai` `#techtok`
 - Mid (pick 1–2): `#chatgpttips` `#moneyhacks` `#productivityhacks` `#savemoney` `#studytips`
-- Niche (pick 1–2): `#aishortcut` (own it) `#chatgpthack` `#budgetingtips` `#notebooklm` `#subscriptions`
+- Niche (pick 1–2): `#tooltheory` (own it) `#chatgpthack` `#budgetingtips` `#notebooklm` `#subscriptions`
 
 **Search keywords to aim for** (check the TikTok search bar's autocomplete before writing):
 `ai tools` · `chatgpt tips` · `chatgpt hacks` · `how to save money` · `cancel subscriptions` · `lower internet bill` · `study hacks ai` · `ai for work` · `budget spreadsheet` · `notebooklm`

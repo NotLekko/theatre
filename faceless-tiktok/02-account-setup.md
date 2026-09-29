@@ -4,31 +4,41 @@
 
 | | |
 |---|---|
-| **Name** | **The AI Shortcut** |
+| **Name** | **Tool Theory** |
+| **Tagline** | "AI tools, tested. Tech, explained." |
 | **Promise** | "One AI shortcut a day that saves you time or money — shown on screen, no hype." |
 | **Who it's for** | 22–45, US/UK/AU-heavy, busy, not techy, wants practical wins. Office workers, students, small-business owners, anyone watching their money. |
 | **Voice** | The friend who's good with tech: calm, quick, slightly conspiratorial ("most people don't know this…"). Never shouty, never "hustle." |
 | **Series tag** | Every video is numbered: **Shortcut #001, #002…** Numbering builds binge-watching and a "don't miss one" habit. |
 
+### Why "Tool Theory"
+
+- **Sounds like a media brand**, not a hack account ("Hard Fork", "The Verge", "Morning Brew" territory). Sponsors take it seriously.
+- **Says the niche:** *tools* = what we cover; *theory* = we explain *why* it works, not just "10 AI tools you NEED."
+- **Room to grow:** it covers AI now and any tech later, without a rename.
+- **Easy to say** in a voiceover, alliterative, and it works on every platform.
+- **No conflicts found** in a Sept 2026 web search (no AI/tech brand, channel or product with that name). "Toolwise" (taken by an AI tools review site), "Byte Brief" and "Clearstack" (both in use) were rejected, and "The AI Shortcut" sat too close to *AI Shortcut Lab* and the *Shortcut* Excel AI tool.
+- Before committing, run a quick check on [USPTO trademark search](https://tmsearch.uspto.gov/) and grab the domain (e.g. `tooltheory.co` / `.ai`) if you want one.
+
 ### Handle options (check availability in order)
 
-1. `@theaishortcut`
-2. `@aishortcut.daily`
-3. `@the.ai.shortcut`
-4. `@shortcutwithai`
-5. `@aishortcuts.hq`
+1. `@tooltheory`
+2. `@tooltheory.ai`
+3. `@tooltheoryhq`
+4. `@thetooltheory`
+5. `@tooltheory.tech`
 
 Grab the same handle on **YouTube, Instagram and Threads** the same day, even if you won't post there yet. Cross-posting comes in Month 2 (see 06).
 
 ### Profile copy
 
-- **Display name** (30-char limit): `AI Shortcut | Tools & Hacks`. Including keywords in the display name helps TikTok search.
+- **Display name** (30-char limit): `Tool Theory | AI Tools & Tech`. Including keywords in the display name helps TikTok search.
 - **Bio** (80-char limit):
   ```
-  AI tools that save you hours & money ⏱️💸
-  New shortcut daily ↓
+  AI tools, tested & explained 🧪
+  A new time-saving tool every day ↓
   ```
-- **Profile photo:** [`brand/profile-picture.png`](brand/profile-picture.png) (lime "AI»" mark on black; it reads at thumbnail size).
+- **Profile photo:** [`brand/profile-picture.png`](brand/profile-picture.png). A lime hex nut (tools) with a sparkle cut out of it (AI), on black. It was tested at TikTok's real sizes, including the 48px feed size, in both dark and light mode. The other options and the size test are in [`brand/logo-options/`](brand/logo-options/). The vector master is [`brand/logo.svg`](brand/logo.svg) (pure shapes, no fonts, so it scales to any size).
 - **Bio link** (once unlocked): a link-in-bio page (Beacons / Stan / Linktree), set up per 06.
 
 ### Visual identity

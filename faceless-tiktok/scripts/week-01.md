@@ -29,13 +29,13 @@
 8. **62–70s:** SHORTCUT #001 tag + "Tomorrow: PDF → podcast".
 
 ### Post
-**Caption:** How to find (and cancel) subscriptions you forgot about, using AI 💸 Export 3 months of transactions → remove personal info → paste the prompt 👇 #savemoney #aitools #chatgpttips #subscriptions #aishortcut
+**Caption:** How to find (and cancel) subscriptions you forgot about, using AI 💸 Export 3 months of transactions → remove personal info → paste the prompt 👇 #savemoney #aitools #chatgpttips #subscriptions #tooltheory
 **Pinned comment:** The prompt: "Find every recurring charge in this file. List the merchant, the amount, how often it repeats, and the yearly total. Sort by yearly cost, highest first." Remove your name and account numbers before uploading 🔒
 
 ---
 
 ## 002 · This free Google tool turns any PDF into a podcast
-**Pillar:** 🧰 Tool Drop · **Hook text:** "Any PDF → a podcast. Free." · **Keywords:** notebooklm, ai tools, study hacks, free ai tool
+**Pillar:** 🧰 Tool Drop · **Hook text:** "Any PDF into a podcast. Free." · **Keywords:** notebooklm, ai tools, study hacks, free ai tool
 
 ### Voiceover
 > This free Google tool turns any boring PDF into a podcast you can listen to on a walk.
@@ -61,7 +61,7 @@
 9. **62–70s:** SHORTCUT #002 tag + "Tomorrow: the 4-part prompt fix".
 
 ### Post
-**Caption:** NotebookLM turns any PDF into a podcast (free) 🎧 Upload → Audio Overview → Generate. Works with Docs, websites and YouTube links too. #notebooklm #aitools #studytips #productivityhacks #aishortcut
+**Caption:** NotebookLM turns any PDF into a podcast (free) 🎧 Upload → Audio Overview → Generate. Works with Docs, websites and YouTube links too. #notebooklm #aitools #studytips #productivityhacks #tooltheory
 **Pinned comment:** Free at notebooklm.google.com. Tip: use "Customize" before generating to set the focus. What would you turn into a podcast? 👇
 **Label:** AI-generated content **on** (the video includes AI audio).
 
@@ -94,7 +94,7 @@
 8. **64–70s:** SHORTCUT #003 tag + "Tomorrow: lower your internet bill".
 
 ### Post
-**Caption:** ChatGPT prompts that don't sound generic: use R-C-T-F ✍️ Role · Context · Task · Format. Save this for your next cover letter, email or report. #chatgpttips #chatgpt #aitools #promptengineering #aishortcut
+**Caption:** ChatGPT prompts that don't sound generic: use R-C-T-F ✍️ Role · Context · Task · Format. Save this for your next cover letter, email or report. #chatgpttips #chatgpt #aitools #promptengineering #tooltheory
 **Pinned comment:** Template 👉 "You are a [ROLE]. Context: [WHAT IT NEEDS TO KNOW]. Task: [SPECIFIC ASK + LENGTH]. Format: [HOW YOU WANT IT BACK]. Ask me any questions you need before you start."
 
 ---
@@ -123,13 +123,13 @@
 8. **64–70s:** SHORTCUT #004 tag + "Tomorrow: 2-hour video → notes".
 
 ### Post
-**Caption:** How to lower your internet bill: an AI-written retention script 📞 Know your price → know the competitor's → ask for retention. Prompt in comments 👇 Results vary by provider. #savemoney #moneyhacks #chatgpttips #billhacks #aishortcut
+**Caption:** How to lower your internet bill: an AI-written retention script 📞 Know your price → know the competitor's → ask for retention. Prompt in comments 👇 Results vary by provider. #savemoney #moneyhacks #chatgpttips #billhacks #tooltheory
 **Pinned comment:** Prompt: "I pay [PRICE]/mo for [PLAN] with [PROVIDER]. New customers pay [PRICE]. [COMPETITOR] offers [PRICE] for the same speed. Write me a short, polite phone script to ask the retention department for a lower rate. Include what to say if they say no."
 
 ---
 
 ## 005 · Your 2-hour video, as one page of notes
-**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "2-hour video → 1 page of notes" · **Keywords:** youtube summary, study hacks ai, ai notes
+**Pillar:** ⚙️ Workflow Rebuild · **Hook text:** "2-hour video. One page of notes." · **Keywords:** youtube summary, study hacks ai, ai notes
 
 ### Voiceover
 > This two-hour video just became one page of notes, and it cost me nothing.
@@ -154,7 +154,7 @@
 9. **64–70s:** SHORTCUT #005 tag + "Tomorrow: 3 camera tricks".
 
 ### Post
-**Caption:** Turn any YouTube video into study notes with AI 📚 Show transcript → copy → paste the prompt. Save this for exam season. #studytips #studyhacks #aitools #chatgpttips #aishortcut
+**Caption:** Turn any YouTube video into study notes with AI 📚 Show transcript → copy → paste the prompt. Save this for exam season. #studytips #studyhacks #aitools #chatgpttips #tooltheory
 **Pinned comment:** Prompt: "Turn this transcript into study notes. Give me a five-sentence summary, the key ideas as headings with bullet points, any definitions, and five questions to test myself."
 
 ---
@@ -183,7 +183,7 @@
 8. **64–70s:** SHORTCUT #006 tag + "Tomorrow: a week of dinners on a budget".
 
 ### Post
-**Caption:** 3 phone camera tricks you're not using 📱 Copy text from anything, translate menus live, identify anything with Google Lens. iPhone + Android. #iphonetricks #androidtips #googlelens #techtok #aishortcut
+**Caption:** 3 phone camera tricks you're not using 📱 Copy text from anything, translate menus live, identify anything with Google Lens. iPhone + Android. #iphonetricks #androidtips #googlelens #techtok #tooltheory
 **Pinned comment:** Which phone are you on, iPhone or Android? I'll make the next one for the most-commented 👇
 
 ---
@@ -213,5 +213,5 @@
 8. **64–70s:** SHORTCUT #007 tag + "Tomorrow: voice memo → full week plan".
 
 ### Post
-**Caption:** Meal plan on a budget with AI 🛒 Paste your store's sale items → 5 dinners → one grocery list sorted by aisle. Prompt 👇 #mealplanning #budgetmeals #savemoney #aitools #aishortcut
+**Caption:** Meal plan on a budget with AI 🛒 Paste your store's sale items → 5 dinners → one grocery list sorted by aisle. Prompt 👇 #mealplanning #budgetmeals #savemoney #aitools #tooltheory
 **Pinned comment:** Prompt: "Plan five dinners for [N] people, under [BUDGET] total. Use as many of these sale items as possible. Each meal under 30 minutes. Avoid [FOODS]. Reuse ingredients across meals so nothing goes to waste."
