@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>AI Shortcut Cover Maker</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root { --ink: #0B0B0F; --lime: #C6FF3D; --muted: #8A8F98; --panel: #16161C; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--ink); color: #fff; font: 15px/1.5 system-ui, sans-serif; }
+  main { display: flex; flex-wrap: wrap; gap: 24px; padding: 24px 16px; max-width: 1000px; margin: 0 auto; }
+  form { flex: 1 1 280px; display: grid; gap: 12px; align-content: start; }
+  label { display: grid; gap: 4px; color: var(--muted); }
+  input, select, textarea { font: inherit; padding: 8px 10px; border-radius: 8px; border: 1px solid #2A2A33; background: var(--panel); color: #fff; }
+  button { font: 700 15px system-ui, sans-serif; padding: 10px; border: 0; border-radius: 8px; background: var(--lime); color: var(--ink); cursor: pointer; }
+  canvas { flex: 0 1 360px; width: 100%; max-width: 360px; height: auto; border-radius: 12px; border: 1px solid #2A2A33; }
+  body.render { background: transparent; }
+  body.render form { display: none; }
+  body.render main { padding: 0; }
+  body.render canvas { max-width: none; width: auto; border: 0; border-radius: 0; }
+</style>
+</head>
+<body>
+<main>
+  <form id="f" onsubmit="return false">
+    <h1 style="margin:0;font-size:20px">AI Shortcut: cover maker</h1>
+    <label>Mode
+      <select name="mode">
+        <option value="cover">Video cover (1080×1920)</option>
+        <option value="avatar">Profile picture (1080×1080)</option>
+        <option value="overlay">Safe-zone overlay (1080×1920)</option>
+      </select>
+    </label>
+    <label>Shortcut number <input name="n" value="015"></label>
+    <label>Hook text <textarea name="hook" rows="3">Stop trusting AI answers without this.</textarea></label>
+    <label>Pillar
+      <select name="pillar">
+        <option>AI MONEY MOVES</option><option>TOOL DROP</option><option>WORKFLOW REBUILD</option>
+        <option>PROMPT FIX</option><option>HIDDEN FEATURES</option>
+      </select>
+    </label>
+    <label>Handle <input name="handle" value="@theaishortcut"></label>
+    <button id="dl" type="button">Download PNG</button>
+  </form>
+  <canvas id="c"></canvas>
+</main>
+<script>
+const INK = "#0B0B0F", LIME = "#C6FF3D", MUTED = "#8A8F98";
+const FONT = '"Montserrat", "Arial Black", "Helvetica Neue", Arial, sans-serif';
+const c = document.getElementById("c"), ctx = c.getContext("2d"), f = document.getElementById("f");
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.roundRect(x, y, w, h, r); ctx.fill();
+}
+
+// Word-wrap text to a max width; returns lines.
+function wrap(text, maxW) {
+  const words = text.split(/\s+/).filter(Boolean), lines = [];
+  let line = "";
+  for (const w of words) {
+    const test = line ? line + " " + w : w;
+    if (ctx.measureText(test).width > maxW && line) { lines.push(line); line = w; } else line = test;
+  }
+  if (line) lines.push(line);
+  return lines;
+}
+
+function grid(w, h) {
+  ctx.strokeStyle = "rgba(198,255,61,0.05)"; ctx.lineWidth = 2;
+  for (let x = 0; x <= w; x += 90) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, h); ctx.stroke(); }
+  for (let y = 0; y <= h; y += 90) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke(); }
+}
+
+// Cover layout keeps everything inside the profile-grid crop (y 240-1680)
+// and out of TikTok's UI (top 150, bottom 400, right 140).
+function drawCover({ n, hook, pillar, handle }) {
+  c.width = 1080; c.height = 1920;
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1920); grid(1080, 1920);
+
+  const tag = `SHORTCUT #${n}`;
+  ctx.font = `900 46px ${FONT}`;
+  const tw = ctx.measureText(tag).width;
+  ctx.fillStyle = LIME; roundRect(80, 300, tw + 64, 84, 42);
+  ctx.fillStyle = INK; ctx.textBaseline = "middle"; ctx.fillText(tag, 112, 344);
+
+  let size = 118, lines;
+  do { ctx.font = `900 ${size}px ${FONT}`; lines = wrap(hook.toUpperCase(), 860 - 96); size -= 6; }
+  while (lines.length > 5 && size > 60);
+  size += 6;
+  const lh = size * 1.12, boxH = lines.length * lh + 110, boxY = 470;
+  ctx.fillStyle = LIME; roundRect(80, boxY, 860, boxH, 36);
+  ctx.fillStyle = INK; ctx.textBaseline = "alphabetic";
+  lines.forEach((l, i) => ctx.fillText(l, 128, boxY + 55 + size * 0.86 + i * lh));
+
+  ctx.font = `700 44px ${FONT}`; ctx.fillStyle = "#FFFFFF";
+  ctx.fillText(pillar, 84, boxY + boxH + 90);
+  ctx.fillStyle = MUTED; ctx.font = `700 40px ${FONT}`;
+  ctx.fillText(handle, 84, 1470);
+}
+
+// Profile picture: a lime "keycap" (a keyboard shortcut) reading AI».
+function drawAvatar() {
+  c.width = 1080; c.height = 1080;
+  ctx.fillStyle = INK; ctx.fillRect(0, 0, 1080, 1080); grid(1080, 1080);
+  ctx.fillStyle = "#6E8F1F"; roundRect(250, 290, 580, 560, 90);   // keycap side
+  ctx.fillStyle = LIME; roundRect(250, 230, 580, 560, 90);        // keycap top
+  ctx.fillStyle = INK; ctx.font = `900 300px ${FONT}`;
+  ctx.textAlign = "center"; ctx.textBaseline = "middle";
+  ctx.fillText("AI»", 540, 522);
+  ctx.textAlign = "left";
+}
+
+function drawOverlay() {
+  c.width = 1080; c.height = 1920;
+  ctx.clearRect(0, 0, 1080, 1920);
+  ctx.fillStyle = "rgba(255,59,59,0.35)";
+  ctx.fillRect(0, 0, 1080, 150);            // status bar / top tabs
+  ctx.fillRect(0, 1520, 1080, 400);         // caption, sound, nav bar
+  ctx.fillRect(940, 150, 140, 1370);        // like/comment/share rail
+  ctx.strokeStyle = LIME; ctx.lineWidth = 4; ctx.setLineDash([24, 16]);
+  [240, 1680].forEach(y => { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(1080, y); ctx.stroke(); });
+  ctx.setLineDash([]);
+  ctx.font = `700 34px ${FONT}`; ctx.fillStyle = "#FFFFFF";
+  ctx.fillText("UNSAFE: TikTok UI (top 150px)", 30, 95);
+  ctx.fillText("UNSAFE: caption + buttons (bottom 400px)", 30, 1600);
+  ctx.fillStyle = LIME;
+  ctx.fillText("profile grid crop ↓", 30, 225);
+  ctx.fillText("profile grid crop ↑", 30, 1665);
+  ctx.save(); ctx.translate(1025, 840); ctx.rotate(-Math.PI / 2);
+  ctx.fillStyle = "#FFFFFF"; ctx.textAlign = "center"; ctx.fillText("UNSAFE: buttons", 0, 12); ctx.restore();
+}
+
+function values() {
+  const p = new URLSearchParams(location.search), d = Object.fromEntries(new FormData(f));
+  for (const k of ["mode", "n", "hook", "pillar", "handle"]) if (p.has(k)) d[k] = p.get(k);
+  return d;
+}
+
+function draw() {
+  const v = values();
+  if (v.mode === "avatar") drawAvatar();
+  else if (v.mode === "overlay") drawOverlay();
+  else drawCover(v);
+}
+
+f.addEventListener("input", draw);
+document.getElementById("dl").addEventListener("click", () => {
+  const v = values(), a = document.createElement("a");
+  a.download = v.mode === "cover" ? `cover-${v.n}.png` : `${v.mode}.png`;
+  a.href = c.toDataURL("image/png"); a.click();
+});
+
+if (new URLSearchParams(location.search).has("render")) document.body.classList.add("render");
+document.fonts.load(`900 100px Montserrat`).catch(() => {}).finally(() => {
+  draw(); document.body.dataset.ready = "1";
+});
+</script>
+</body>
+</html>
