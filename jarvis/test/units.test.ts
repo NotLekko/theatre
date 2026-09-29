@@ -52,6 +52,20 @@ describe("loadConfig", () => {
     assert.throws(() => loadConfig([], { JARVIS_MIC_DEVICE: "usb" }), /device index/);
   });
 
+  it("chooses the film voice by default, and checks voice settings", () => {
+    const { config } = loadConfig([], {});
+    assert.equal(config.voiceEngine, "neural");
+    assert.equal(config.voiceName, undefined);
+    assert.equal(config.voiceFx, "film");
+    const chosen = loadConfig([], { JARVIS_VOICE_NAME: "bm_george", JARVIS_VOICE_FX: "Helmet" }).config;
+    assert.equal(chosen.voiceName, "bm_george");
+    assert.equal(chosen.voiceFx, "helmet");
+    assert.equal(loadConfig([], { JARVIS_VOICE_ENGINE: "system", JARVIS_VOICE_NAME: "Daniel" }).config.voiceName, "Daniel");
+    assert.throws(() => loadConfig([], { JARVIS_VOICE_NAME: "Daniel" }), /isn't one of the film voices.*JARVIS_VOICE_ENGINE=system/);
+    assert.throws(() => loadConfig([], { JARVIS_VOICE_ENGINE: "robot" }), /JARVIS_VOICE_ENGINE must be one of neural, system/);
+    assert.throws(() => loadConfig([], { JARVIS_VOICE_FX: "echo" }), /JARVIS_VOICE_FX must be one of film, helmet, clean/);
+  });
+
   it("rejects an unknown effort level", () => {
     assert.throws(() => loadConfig(["--effort", "ludicrous"], {}), /Unknown effort level/);
   });
