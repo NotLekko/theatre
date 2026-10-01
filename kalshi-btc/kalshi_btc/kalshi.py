@@ -84,3 +84,31 @@ class KalshiPublic:
             path = f"/series/{series}/markets/{ticker}/candlesticks"
         data = self._get(path, {"start_ts": start_ts, "end_ts": end_ts, "period_interval": 1})
         return data.get("candlesticks", [])
+
+    # ---- live endpoints used by the paper-trading desk
+
+    def open_markets(self, series: str) -> list[dict]:
+        return self._get("/markets", {"series_ticker": series, "status": "open", "limit": 20}).get("markets", [])
+
+    def recent_settled(self, series: str, limit: int = 8) -> list[dict]:
+        return self._get("/markets", {"series_ticker": series, "status": "settled", "limit": limit}).get("markets", [])
+
+    def market(self, ticker: str) -> dict:
+        return self._get(f"/markets/{ticker}")["market"]
+
+    def orderbook(self, ticker: str, depth: int = 25) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+        """Resting YES bids and NO bids as (price, size), best (highest) first."""
+        payload = self._get(f"/markets/{ticker}/orderbook", {"depth": depth})
+        return parse_orderbook(payload)
+
+
+def parse_orderbook(payload: dict) -> tuple[list[tuple[float, float]], list[tuple[float, float]]]:
+    book = payload.get("orderbook_fp") or payload.get("orderbook") or {}
+
+    def side(name: str) -> list[tuple[float, float]]:
+        levels = book.get(f"{name}_dollars")
+        if levels is None:  # older responses: integer cents
+            levels = [(int(p) / 100.0, q) for p, q in (book.get(name) or [])]
+        return sorted(((float(p), float(q)) for p, q in levels), key=lambda level: level[0], reverse=True)
+
+    return side("yes"), side("no")

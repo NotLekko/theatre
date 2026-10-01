@@ -26,6 +26,34 @@ python3 -m kalshi_btc backtest          # prints the report, saves it to reports
 `fetch` caches everything under `data/`. Re-running it only downloads what's
 missing.
 
+## Paper trading
+
+```sh
+python3 -m kalshi_btc paper   # opens http://localhost:8765 in your browser
+```
+
+A local web page for testing bets on the live 15-minute windows with paper
+money. It shows the current window's target, BTC's live price against it, a
+countdown, and the market's and the model's odds. You can:
+
+- **Bet by hand.** Buy UP (YES) or DOWN (NO) for any number of contracts.
+  Fills work through Kalshi's live order book at the moment you click, so big
+  orders get worse prices, and every fill pays the real taker fee.
+- **Run strategy bots.** Each switched-on bot gets one decision at minute 5
+  and one at minute 10 of every window, using the same rules the backtest
+  tested. Momentum, Follow the favorite and Pricing model (2¢ edge) start
+  switched on.
+- **Track results.** Bets settle on Kalshi's real result a few seconds after
+  each window closes. The page shows P&L per strategy and for you.
+
+The account starts at $1,000 and is saved to `paper/account.json`, so
+stopping and restarting the desk picks up where you left off (bots only bet
+while it's running). Nothing is ever sent to Kalshi, and no account or API
+key is needed. The server only listens on your own computer (127.0.0.1).
+
+Options: `--port 8765`, `--balance 1000` (for a new account),
+`--state paper/account.json`, `--no-browser`.
+
 ## What it downloads
 
 | Data | Source | Used for |

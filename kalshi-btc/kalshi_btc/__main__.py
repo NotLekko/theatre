@@ -49,6 +49,26 @@ def cmd_backtest(args) -> None:
     print(f"\nSaved {report_path} and {trades_path}", file=sys.stderr)
 
 
+def cmd_paper(args) -> None:
+    import webbrowser
+    from .kalshi import KalshiPublic
+    from .live import LiveFeed
+    from .paper import PaperDesk
+    from .server import serve
+
+    client = KalshiPublic()
+    desk = PaperDesk(args.state, LiveFeed(client, args.series), client, starting_balance=args.balance)
+    url = f"http://localhost:{args.port}"
+    print(f"Paper desk running at {url}  (paper money only; press Ctrl+C to stop)")
+    print(f"Account file: {Path(args.state).resolve()}")
+    if not args.no_browser:
+        webbrowser.open(url)
+    try:
+        serve(desk, port=args.port)
+    except KeyboardInterrupt:
+        print("\nStopped. Your paper account is saved; run the same command to pick up where you left off.")
+
+
 def main(argv: list[str] | None = None) -> None:
     parser = argparse.ArgumentParser(prog="python -m kalshi_btc",
                                      description="Backtest baseline strategies on Kalshi's 15-minute BTC markets.")
@@ -78,6 +98,14 @@ def main(argv: list[str] | None = None) -> None:
     p.add_argument("--train-frac", type=float, default=0.5)
     p.add_argument("--out", default="reports")
     p.set_defaults(func=cmd_backtest)
+
+    p = sub.add_parser("paper", help="paper-trade the live 15-minute markets from your browser")
+    p.add_argument("--port", type=int, default=8765)
+    p.add_argument("--state", default="paper/account.json", help="where the paper account is saved")
+    p.add_argument("--balance", type=float, default=1000, help="starting balance for a new account")
+    p.add_argument("--series", default=DEFAULT_SERIES)
+    p.add_argument("--no-browser", action="store_true", help="don't open a browser tab")
+    p.set_defaults(func=cmd_paper)
 
     args = parser.parse_args(argv)
     args.func(args)
