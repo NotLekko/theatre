@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import math
+import statistics
 from dataclasses import dataclass
 from typing import Iterable, Sequence
 
@@ -14,6 +15,7 @@ from .timeutil import iso
 ENTRY_MINUTES = (1, 3, 5, 7, 10, 12, 14)
 EDGE_THRESHOLDS = (0.0, 0.02, 0.05, 0.10)
 MIN_TRAIN_TRADES = 30
+BASIS_WINDOWS = 8
 
 
 @dataclass(frozen=True)
@@ -37,12 +39,31 @@ class Trade:
 
 class Backtester:
     def __init__(self, dataset: Dataset, contracts: int = 10, fee_multiplier: float = 1.0,
-                 vol_lookback_minutes: int = 60):
+                 vol_lookback_minutes: int = 60, basis_windows: int = BASIS_WINDOWS):
         self.dataset = dataset
         self.contracts = contracts
         self.fee_multiplier = fee_multiplier
         self.vol_lookback = vol_lookback_minutes
+        self.basis = self._trailing_basis(basis_windows)
         self._contexts: dict[tuple[str, int], Context | None] = {}
+
+    def _trailing_basis(self, windows: int) -> dict[str, float]:
+        """Gap between the settlement index and Coinbase for each market.
+
+        It's the median, over this window and the `windows - 1` before it, of
+        strike minus Coinbase's average over the minute before the open. A
+        strike is public from its window's open, so this uses no future data.
+        """
+        btc = self.dataset.btc
+        gaps: list[float] = []
+        basis = {}
+        for m in self.dataset.markets:
+            before, at_open = btc.closes.get(m.open_ts - 120), btc.closes.get(m.open_ts - 60)
+            if m.strike is not None and before and at_open:
+                gaps.append(m.strike - (before + at_open) / 2)
+            recent = gaps[-windows:] if windows > 0 else []
+            basis[m.ticker] = statistics.median(recent) if recent and m.strike is not None else 0.0
+        return basis
 
     def fee_per_contract(self, price: float) -> float:
         return taker_fee(self.contracts, price, self.fee_multiplier) / self.contracts
@@ -68,6 +89,8 @@ class Backtester:
             return None
         btc = self.dataset.btc
         spot = btc.price_at(ts)
+        if spot is not None:
+            spot += self.basis.get(market.ticker, 0.0)
         sigma = btc.realized_vol(ts, self.vol_lookback)
         strike = self.strike(market)
         p_yes = None
@@ -247,6 +270,10 @@ def build_report(bt: Backtester, train_frac: float = 0.5) -> tuple[str, WalkForw
             f"from the window start")
     if missing_strike:
         out(f"- {missing_strike} markets had no `floor_strike`; used the Coinbase price at open instead")
+    gaps = [bt.basis[m.ticker] for m in markets if bt.basis.get(m.ticker)]
+    if gaps:
+        out(f"- Coinbase prices are shifted onto the settlement index by a trailing gap estimate "
+            f"(median {_money(statistics.median(gaps))})")
     if checkable:
         out(f"- Settlement sanity check (expiration value vs strike agrees with result): "
             f"{consistent}/{len(checkable)}")

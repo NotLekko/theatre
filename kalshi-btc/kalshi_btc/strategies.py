@@ -18,7 +18,7 @@ class Context:
     minute: int                 # minutes since the window opened
     minutes_left: float
     quote: Quote
-    spot: float | None          # BTC price at ts (Coinbase proxy for the index)
+    spot: float | None          # BTC price at ts (Coinbase, shifted onto the settlement index)
     strike: float | None
     sigma: float | None         # trailing one-minute log-return volatility
     p_yes: float | None         # model probability that YES settles in the money

@@ -85,6 +85,15 @@ class NoLookaheadTest(unittest.TestCase):
         self.assertEqual(series2.realized_vol(ts), vol)
         self.assertEqual(price, closes[ts - 60])
 
+    def test_basis_uses_only_current_and_earlier_strikes(self):
+        closes = {t: 100.0 for t in range(-600, 3600, 60)}
+        markets = [Market(f"M{i}", i * 900, (i + 1) * 900, 103.0 + i, "yes", True, None) for i in range(3)]
+        bt = Backtester(_dataset(markets, closes), basis_windows=8)
+        self.assertEqual(bt.basis["M0"], 3.0)
+        self.assertEqual(bt.basis["M1"], 3.5)
+        markets[2].strike = 500.0  # a later window can't move earlier estimates
+        self.assertEqual(Backtester(_dataset(markets, closes), basis_windows=8).basis["M1"], 3.5)
+
 
 class ModelTest(unittest.TestCase):
     def test_prob_up(self):

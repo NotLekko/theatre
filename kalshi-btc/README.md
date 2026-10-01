@@ -7,13 +7,19 @@ money after the spread and fees, on data they weren't tuned on?**
 It does not place orders and does not need a Kalshi account or API key. It
 only reads public market data.
 
+**Result so far** ([full report](results/backtest-2026-10-01-60d.md), 60 days,
+5,693 windows): no edge. The market's own price predicted outcomes better
+than the model at every entry minute, every simple strategy lost money over
+the whole sample, and the strategy that did best on the first half lost money
+on the second.
+
 ## Quick start
 
 Requires Python 3.9+. No packages to install.
 
 ```sh
 cd kalshi-btc
-python3 -m kalshi_btc fetch --days 30   # ~2,900 markets; takes about 10 minutes
+python3 -m kalshi_btc fetch --days 30   # ~2,900 markets; takes about 7 minutes
 python3 -m kalshi_btc backtest          # prints the report, saves it to reports/
 ```
 
@@ -32,6 +38,9 @@ Kalshi settles these markets on the CF Benchmarks Real-Time Index: the strike
 is its 60-second average before the window opens, and the result is its
 60-second average before it closes. That index isn't freely downloadable;
 Coinbase is one of its component exchanges and is used as a close proxy.
+Coinbase runs a few dollars off the index, so its prices are shifted by the
+median gap between recent strikes and Coinbase at those opens. Each strike is
+public from its window's open, so the shift uses no future data.
 
 ## What it tests
 
